@@ -3,5 +3,5 @@ CPU Scheduler is a simulation project focused on solving CPU task matching and s
 This project was developed as part of the Evolutionary Computation course project at National Kaohsiung University of Science and Technology (NKUST). It serves as an academic experiment in applying techniques such as genetic algorithms, simulated annealing, and other metaheuristics to classical CPU scheduling problems. The aim is not only to achieve high-quality solutions but also to gain insight into how different algorithmic strategies behave under various system loads and constraints.
 The simulation supports a variety of scheduling objectives, such as minimizing average waiting time, turnaround time, and maximizing CPU utilization. It also includes a visualization module to help understand the scheduling process and algorithm performance over time.
 
-Author
+#Author
 Jiaen Suen
