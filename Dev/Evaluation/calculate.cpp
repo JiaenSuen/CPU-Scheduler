@@ -5,17 +5,20 @@
 #include <iomanip>
 #include <algorithm>
 #include <chrono>
+#include <unordered_map>
 using namespace std;
 using namespace std::chrono;
 
 
 // Data Structue
-
+// key is Curren Task t，value is previous task from and commuication cost : vol
 struct Config {
     unsigned int thePCount, theTCount , theECount;
     vector<vector<double>> theCommRate;
     vector<vector<double>> theCompCost;
     vector<vector<double>> theTransDataVol;
+
+    unordered_map<int, vector<pair<int,double>>> predMap;
 };
 
 struct Solution{
@@ -228,6 +231,20 @@ namespace Read_File
 
             }
         }
+
+        Config_Info.predMap.reserve(Config_Info.theTCount);
+
+        for (auto &edge : Config_Info.theTransDataVol) {
+            int from = static_cast<int>(edge[0]);
+            int to   = static_cast<int>(edge[1]);
+            double vol = edge[2];
+
+            auto &vec = Config_Info.predMap[to];
+            if (vec.empty()) {
+                vec.reserve(3);
+            }
+            vec.emplace_back(from, vol);
+        }
         
 
         infile.close();
@@ -344,17 +361,16 @@ ScheduleResult Calculate_schedule(const vector<int>& ss,const vector<int>& ms,co
 
         // The earliest ready time that this task can start after all predecessors are completed + communication delays are calculated
         double ready = 0.0;
-        for (int e = 0; e < E; ++e) {
-            int from = (int) config.theTransDataVol[e][0];
-            int to   = (int) config.theTransDataVol[e][1];
-            double vol =      config.theTransDataVol[e][2];
-
-            if (to == t) {
-                int pf = ms[from]; 
-                double commDelay = 0.0;
-                if (pf != p) {
-                    commDelay = vol * config.theCommRate[pf][p];
-                }
+        auto it = config.predMap.find(t);
+        if (it != config.predMap.end()) {
+            // it->second 是 vector<pair<int,double>> of (from, vol)
+            for (auto &pr : it->second) {
+                int from = pr.first;
+                double vol = pr.second;
+                int pf = ms[from];
+                double commDelay = (pf != p)
+                    ? vol * config.theCommRate[pf][p]
+                    : 0.0;
                 ready = max(ready, endTime[from] + commDelay);
             }
         }
