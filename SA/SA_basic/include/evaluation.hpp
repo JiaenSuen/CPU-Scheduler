@@ -40,12 +40,12 @@ inline ScheduleResult Calculate_schedule(const vector<int>& ss, const vector<int
     return {startTime, endTime, makespan};
 }
 
-inline bool is_feasible(const ScheduleResult& result, const Config& config) {
+inline bool is_feasible(const ScheduleResult& result, const Config& config, bool show_adjust = false) {
     for (const auto& edge : config.theTransDataVol) {
         int from = static_cast<int>(edge[0]);
         int to = static_cast<int>(edge[1]);
         if (result.endTime[from] > result.startTime[to]) {
-            cerr << "[Error] Dependency violated: Task " << from << " ends at " << result.endTime[from] 
+            if (show_adjust) cerr << "[Error] Dependency violated: Task " << from << " ends at " << result.endTime[from] 
                  << ", but Task " << to << " starts at " << result.startTime[to] << ".\n";
             return false;
         }
@@ -53,7 +53,7 @@ inline bool is_feasible(const ScheduleResult& result, const Config& config) {
     return true;
 }
 
-inline ScheduleResult Solution_Function(Solution& sol, const Config& config) {
+inline ScheduleResult Solution_Function(Solution& sol, const Config& config , bool show_adjust = false) {
     int T = config.theTCount;
     int P = config.thePCount;
     vector<int> task_check = sol.ss;
@@ -80,14 +80,15 @@ inline ScheduleResult Solution_Function(Solution& sol, const Config& config) {
     ScheduleResult result = Calculate_schedule(sol.ss, sol.ms, config);
     bool adjusted = false;
 
-    if (!is_feasible(result, config)) {
+    if (!is_feasible(result, config ,show_adjust)) {
         for (const auto& edge : config.theTransDataVol) {
             int from = static_cast<int>(edge[0]);
             int to = static_cast<int>(edge[1]);
 
             if (result.endTime[from] > result.startTime[to]) {
-                cerr << "[Adjusting] Dependency violated: Task " << from << " ends at " << result.endTime[from]
-                     << ", but Task " << to << " starts at " << result.startTime[to] << ".\n";
+                if (show_adjust)
+                    cerr << "[Adjusting] Dependency violated: Task " << from << " ends at " << result.endTime[from]
+                        << ", but Task " << to << " starts at " << result.startTime[to] << ".\n";
 
                 auto it = find(sol.ss.begin(), sol.ss.end(), to);
                 if (it != sol.ss.end()) {
@@ -98,12 +99,12 @@ inline ScheduleResult Solution_Function(Solution& sol, const Config& config) {
                 result = Calculate_schedule(sol.ss, sol.ms, config);
                 adjusted = true;
 
-                cout << "[Adjusted] Moved Task " << to << " after Task " << from << ".\n";
+                if (show_adjust) cout << "[Adjusted] Moved Task " << to << " after Task " << from << ".\n";
             }
         }
 
         if (adjusted) 
-            cout << "[Info] Adjusted solution to become feasible.\n";
+            if (show_adjust) cout << "[Info] Adjusted solution to become feasible.\n";
         
     }
 

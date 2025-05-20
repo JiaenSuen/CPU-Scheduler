@@ -1,0 +1,16 @@
+多重鄰域 SA（Multi-neighborhood SA）
+
+多起點 SA（Multiple start SA chains）
+
+混合 SA + 梯度式微調（例如在接受解後做 local greedy 修正）
+
+
+
+插入移動（Insertion）：將任務 i 插入到任務 j 前（而不是 swap）
+
+群體交換：交換一段連續區間（block swap）
+
+處理器區間改派：某幾個任務一起指派到另一個處理器（探索局部平衡）
+
+以成本導向的修改（選擇對 makespan 影響大的任務來變更）
+
