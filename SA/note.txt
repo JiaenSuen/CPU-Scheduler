@@ -14,3 +14,31 @@
 
 以成本導向的修改（選擇對 makespan 影響大的任務來變更）
 
+
+
+
+【1】Genetic Algorithm（GA）基因演算法
+適合中大型問題
+
+編碼方式：同樣用 ss + ms 雙基因編碼
+
+遺傳操作：
+
+順序部分用 PMX、Order Crossover（保留部分拓撲）
+
+處理器部分用位元或亂數突變
+
+搭配修正器 Solution_Function() 可保證可行性
+
+缺點：需要群體計算、成本高，但能全域搜尋更好
+
+
+2】Ant Colony Optimization（ACO）螞蟻演算法
+適合處理離散順序類型問題
+
+可以將任務 + 處理器選擇視為「走路決策」
+
+蒐集歷史資訊，隱含 task-task 與 processor-task 的好壞組合
+
+搭配合法解限制（如 pheromone 避免違規）可提升效果
+

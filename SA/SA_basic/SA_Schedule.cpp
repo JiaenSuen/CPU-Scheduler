@@ -28,7 +28,7 @@ SA_Params& set_SA_param() {
     static SA_Params params;
     params.T              = 100.0;            // 例如：根據問題規模可自己調整
     params.T_min          = 1e-3;            // 例如：當溫度低於此值時停止 
-    params.alpha          = 0.55;           // 每次迴圈後溫度乘上 alpha
+    params.alpha          = 0.65;           // 每次迴圈後溫度乘上 alpha
     params.iterPerTemp    = 500;           // 每個溫度底下做多少次鄰域搜尋
     params.max_Iter       = 200;          // 最多總迭代次數
     params.max_NoImprove  = 6000;          // 連續多少次沒有改善就停止
@@ -116,14 +116,15 @@ Solution Simulated_Annealing(const Config& config){
 
 int main()
 {
-    Config config = ReadConfigFile("n4_00.dag");
+    Config config = ReadConfigFile("n4_02.dag");
     Solution sol = Simulated_Annealing(config);
     cout<<"Best Solution : \n";
     show_solution(sol);
     ScheduleResult SR =  Solution_Function(sol,config,true);
+    cout<<boolalpha<<is_feasible(SR,config)<<endl;
     cout<<"Best Cost : \n";
-    cout<<SR.makespan;
-
+    cout<<SR.makespan<<endl;
+    cout<<is_feasible(SR,config);
 
     return 0;
 }
@@ -131,7 +132,7 @@ int main()
 /*
 Note :
     Static Result :
-        以 100為區間，看找到幾次最優解
+        以 100 為區間，看找到幾次最優解
         多次找，找到最佳解的機率，穩定度測試
 */
 
