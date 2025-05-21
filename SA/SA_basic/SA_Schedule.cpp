@@ -13,7 +13,7 @@ using namespace std::chrono;
 std::mt19937 rng(std::random_device{}());
 
 struct SA_Params {
-    double T;                  // 初始溫度
+    double T;                   // 初始溫度
     double T_min;              // 最低溫度
     double alpha;             // 冷卻係數 (0.9–0.99)
     int iterPerTemp;         // 每個溫度迴圈次數
@@ -26,14 +26,14 @@ struct SA_Params {
 
 SA_Params& set_SA_param() {
     static SA_Params params;
-    params.T              = 100.0;            // 例如：根據問題規模可自己調整
-    params.T_min          = 1e-3;            // 例如：當溫度低於此值時停止 
-    params.alpha          = 0.65;           // 每次迴圈後溫度乘上 alpha
-    params.iterPerTemp    = 500;           // 每個溫度底下做多少次鄰域搜尋
-    params.max_Iter       = 200;          // 最多總迭代次數
-    params.max_NoImprove  = 6000;          // 連續多少次沒有改善就停止
-    params.use_Heuristic  = false;      // 預設用隨機初始解
-    params.noImproveCount = 0;         // 計數器歸零
+    params.T              = 100.0;             // 例如：根據問題規模可自己調整
+    params.T_min          = 1e-3;             // 例如：當溫度低於此值時停止 
+    params.alpha          = 0.85;            // 每次迴圈後溫度乘上 alpha
+    params.iterPerTemp    = 5;              // 每個溫度底下做多少次鄰域搜尋
+    params.max_Iter       = 200;           // 最多總迭代次數
+    params.max_NoImprove  = 6000;         // 連續多少次沒有改善就停止
+    params.use_Heuristic  = false;       // 預設用隨機初始解
+    params.noImproveCount = 0;          // 計數器歸零
     return params;
 }
 
