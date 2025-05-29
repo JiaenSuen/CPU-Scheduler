@@ -39,7 +39,11 @@ Solution GenerateInitialSolution(const Config& cfg, bool useHeuristic=false){
     return sol;
 }
 
+
+
+
 /*
+for SA , tabu 
 | 0    | Swap in `ss`               | 交換兩個任務的順序
 | 1    | Change in `ms`             | 隨機改變某個任務的處理器分配 
 | 2    | Swap in `ss` + modify `ms` | 同時調整順序與處理器配置（加強探索） 

@@ -108,6 +108,8 @@ inline ScheduleResult Solution_Function(Solution& sol, const Config& config , bo
         
     }
 
+
+    
     return result;
 }
 
