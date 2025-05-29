@@ -1,0 +1,15 @@
+Adaptive Mutation and Crossover Rates:
+
+	Dynamically adjust rates based on convergence speed and diversity metrics.
+
+Elitism Integration:
+
+	Preserve top-k individuals each generation to maintain best-known solutions.
+
+Hybrid Heuristics:
+
+	Introduce local search (e.g., simulated annealing) for refined exploitation.
+
+ 
+
+ 
