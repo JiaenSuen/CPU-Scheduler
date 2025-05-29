@@ -25,6 +25,7 @@ class Solution {
     public :
     std::vector<int> ss;  // Schedule of tasks
     std::vector<int> ms; // tasks[index] -> machine ID
+    double cost;
 };
 
 struct ScheduleResult {

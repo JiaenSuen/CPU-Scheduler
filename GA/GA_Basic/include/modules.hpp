@@ -10,6 +10,9 @@ std::mt19937 rng(std::random_device{}());
 
 
 
+
+
+
 Solution GenerateInitialSolution(const Config& cfg, bool useHeuristic=false){
     int T = cfg.theTCount;
     int P = cfg.thePCount;
