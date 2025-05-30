@@ -21,9 +21,10 @@ struct Config {
     std::unordered_map<int, std::vector<std::pair<int,double>>> predMap;
 };
 
-struct Solution {
+class Solution {
     std::vector<int> ss;  // Schedule of tasks
     std::vector<int> ms; // tasks[index] -> machine ID
+    double cost;
 };
 
 struct ScheduleResult {

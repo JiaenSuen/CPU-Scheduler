@@ -14,7 +14,6 @@ using namespace std::chrono;
 
 // ----- GA Parameters ------
 struct GA_Params {
-    int map_size;
     int population_size;
     int generations;
     double crossover_rate;
@@ -24,8 +23,7 @@ struct GA_Params {
 
 GA_Params Init_GA_Params() {
     GA_Params params;
-    params.map_size = 20;
-    params.population_size = 100;
+    params.population_size = 500;
     params.generations = 200;
     params.crossover_rate = 0.7;
     params.mutation_rate = 0.4;

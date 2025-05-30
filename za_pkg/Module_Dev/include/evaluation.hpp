@@ -107,6 +107,7 @@ inline ScheduleResult Solution_Function(Solution& sol, const Config& config) {
         
     }
 
+    sol.cost = result.makespan;
     return result;
 }
 
