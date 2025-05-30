@@ -9,6 +9,10 @@
 螞蟻光束
 灰狼演算
 
+Harmony Search 
+Memetic Algorithm (  GA + Local Search )
 
-
+Greedy Randomized Adaptive Search Procedure
+Reinforcement Learning (RL)
+ 
 
