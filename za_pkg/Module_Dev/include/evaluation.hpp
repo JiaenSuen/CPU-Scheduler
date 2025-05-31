@@ -53,7 +53,7 @@ inline bool is_feasible(const ScheduleResult& result, const Config& config) {
     return true;
 }
 
-inline ScheduleResult Solution_Function(Solution& sol, const Config& config) {
+inline ScheduleResult Solution_Function(Solution& sol, const Config& config , bool show_adjust = false) {
     int T = config.theTCount;
     int P = config.thePCount;
     vector<int> task_check = sol.ss;
@@ -78,37 +78,51 @@ inline ScheduleResult Solution_Function(Solution& sol, const Config& config) {
     }
 
     ScheduleResult result = Calculate_schedule(sol.ss, sol.ms, config);
-    bool adjusted = false;
+    bool adjusted_any = false;
 
-    if (!is_feasible(result, config)) {
+    while (!is_feasible(result, config, show_adjust)) {
+        adjusted_any = true;
+
+         
         for (const auto& edge : config.theTransDataVol) {
             int from = static_cast<int>(edge[0]);
-            int to = static_cast<int>(edge[1]);
+            int to   = static_cast<int>(edge[1]);
 
+            // 發現衝突
             if (result.endTime[from] > result.startTime[to]) {
-                cerr << "[Adjusting] Dependency violated: Task " << from << " ends at " << result.endTime[from]
-                     << ", but Task " << to << " starts at " << result.startTime[to] << ".\n";
-
+                if (show_adjust) {
+                    cerr << "[Adjusting] Dependency violated: Task " << from
+                         << " ends at " << result.endTime[from]
+                         << ", but Task " << to
+                         << " starts at " << result.startTime[to] << ".\n";
+                }
+                // 「to」必須搬到尾端
                 auto it = find(sol.ss.begin(), sol.ss.end(), to);
                 if (it != sol.ss.end()) {
                     sol.ss.erase(it);
+                    sol.ss.push_back(to);
                 }
-                sol.ss.push_back(to);
+                if (show_adjust) {
+                    cout << "[Adjusted] Moved Task " << to << " after Task " << from << ".\n";
+                }
 
+                // 重新計算 schedule 並跳出這個 for-loop，從頭再檢查一次
                 result = Calculate_schedule(sol.ss, sol.ms, config);
-                adjusted = true;
-
-                cout << "[Adjusted] Moved Task " << to << " after Task " << from << ".\n";
+                break;
             }
         }
-
-        if (adjusted) 
-            cout << "[Info] Adjusted solution to become feasible.\n";
-        
+        // 回到 while 條件，若還有 violation 就繼續
     }
+
+    if (adjusted_any && show_adjust) {
+        cout << "[Info] Adjusted solution to become feasible.\n";
+    }
+
+    
 
     sol.cost = result.makespan;
     return result;
 }
+
 
 #endif   

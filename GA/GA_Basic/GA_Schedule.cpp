@@ -23,7 +23,7 @@ struct GA_Params {
 
 GA_Params Init_GA_Params() {
     GA_Params params;
-    params.population_size = 500;
+    params.population_size = 100;
     params.generations = 200;
     params.crossover_rate = 0.7;
     params.mutation_rate = 0.4;
@@ -58,7 +58,7 @@ public:
 
         Individual child = *this;  
 
-        // 2.1 OX for ss
+        //  OX for ss
         if (uni01(rng) < crossover_rate) {
             int c1 = cutDist(rng), c2 = cutDist(rng);
             if (c1 > c2) std::swap(c1, c2);
@@ -86,7 +86,7 @@ public:
         }
      
 
-        // 2.2 Uniform crossover for ms
+        // Uniform crossover for ms
         for (int i = 0; i < T; ++i) {
             if (uni01(rng) < 0.5)
                 child.ms[i] = this->ms[i];
@@ -108,19 +108,18 @@ public:
         std::uniform_int_distribution<int> procDist(0, P-1);
 
         bool changed = false;
-        // 3.1 ss 交換突變
+        //  ss 交換突變
         if (uni01(rng) < mutation_rate) {
             int i = posDist(rng), j = posDist(rng);
             std::swap(ss[i], ss[j]);
             changed = true;
         }
-        // 3.2 ms 隨機重設
+        //  ms 隨機重設
         if (uni01(rng) < mutation_rate) {
             int k = posDist(rng);
             ms[k] = procDist(rng);
             changed = true;
         }
-        // 若有改動，再評估
         if (changed) evaluate(cfg);
     }
 
