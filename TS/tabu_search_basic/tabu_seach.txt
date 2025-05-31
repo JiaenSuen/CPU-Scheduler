@@ -1,0 +1,57 @@
+從當前解（current solution）生成多個鄰近解（neighbors），
+挑選出在禁忌清單外且最優的鄰近解作為下一個「當前解」，同時更新禁忌清單。
+過程中保留全域最優解（best solution）以便最後回傳。
+
+ 
+// Tabu Search：高階流程
+ 
+1. 讀入 Config 資料
+   └── Config cfg = ReadConfigFile("");
+
+2. 產生並評估「初始解」
+   ├── Solution currentSolution = GenerateInitialSolution(cfg, /*useHeuristic=*/false);
+   ├── double currentCost = Evaluate(currentSolution, cfg);
+   ├── Solution bestSolution = currentSolution;
+   └── double bestCost = currentCost;
+
+3. 初始化 Tabu List
+   └── TabuList tabuList(tabuTenure); 
+       ── tabuTenure：禁忌期限（例如 10、15 等超參數）
+
+4. 進入主迴圈（核心搜尋過程）
+   for (int iter = 0; iter < maxIterations; ++iter) {
+       // (4.1) 生成 鄰居 集合（GenerateNeighbors）
+       List<NeighborInfo> neighbors = GenerateNeighbors(currentSolution, cfg);
+
+       // (4.2) 選出最適的「非禁忌」鄰居（或符合 Aspiration 準則）
+       NeighborInfo chosen = SelectBestNonTabu(neighbors, tabuList, bestSolution, cfg);
+
+       // (4.3) 將剛才使用的 Move 加入 Tabu List
+       tabuList.add(chosen.move);
+
+       // (4.4) 更新 currentSolution 與 currentCost
+       currentSolution = chosen.solution;
+       currentCost     = chosen.cost;
+
+       // (4.5) 如果 currentCost 更優於 bestCost，就更新全域最佳解
+       if (currentCost < bestCost) {
+           bestSolution = currentSolution;
+           bestCost     = currentCost;
+       }
+
+       // (4.6) Tabu List 扣減所有禁忌條目剩餘期限，並移除過期項目
+       tabuList.decrementTenure();
+
+       // （可選）印出中間結果或做其他動態調整
+       if (iter % 100 == 0) {
+           print("Iteration ", iter, 
+                 "  CurrentCost=", currentCost, 
+                 "  BestCost=", bestCost);
+       }
+   }
+
+5. 回傳 bestSolution，並列印最終結果
+   ├── ScheduleResult finalRes = Solution_Function(bestSolution, cfg, true);
+   └── print("Tabu Search：最終 makespan =", finalRes.makespan, 
+            " Feasible =", is_feasible(finalRes, cfg));
+
