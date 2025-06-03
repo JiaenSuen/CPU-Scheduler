@@ -217,16 +217,17 @@ Solution Genetic_Algorithm(Config& config) {
         [](auto& a, auto& b){ return a.cost < b.cost; }
     );
     Solution best = *best_it;
-    cout << "Best makespan: " << best.cost << "\n";
-    show_solution(best);
-    ScheduleResult sr = Solution_Function(best, config, true);
-    cout << "Feasible: " << std::boolalpha << is_feasible(sr, config) << "\n";
+    
 
     return best;
 }
 
 int main(){
-    Config config = ReadConfigFile("n4_00.dag");
-    Genetic_Algorithm(config);
+    Config config = ReadConfigFile("../../datasets/n4_00.dag");
+    Solution GA_Result = Genetic_Algorithm(config);
+    cout << "Best makespan: " << GA_Result.cost << "\n";
+    show_solution(GA_Result);
+    ScheduleResult sr = Solution_Function(GA_Result, config, true);
+    cout << "Feasible: " << std::boolalpha << is_feasible(sr, config) << "\n";
     return 0;
 }

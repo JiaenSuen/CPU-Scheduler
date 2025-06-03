@@ -232,11 +232,11 @@ Solution Tabu_Search(const Config& cfg, int maxIter, int tabuTenure, int numCand
 
   
 int main() {
-    Config cfg = ReadConfigFile("n4_00.dag");
+    Config cfg = ReadConfigFile("../../datasets/n4_00.dag");
     
     int maxIter       = 200;   // 最大迭代次數  
-    int tabuTenure    = 20;    // 禁忌期限  
-    int numCandidates = 40;   // 一次產生的鄰居數量  
+    int tabuTenure    = 30;    // 禁忌期限  
+    int numCandidates = 60;   // 一次產生的鄰居數量  
 
     Solution best = Tabu_Search(cfg, maxIter, tabuTenure, numCandidates);
 
