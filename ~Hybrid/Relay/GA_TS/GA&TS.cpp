@@ -24,8 +24,8 @@ struct GA_Params {
 
 GA_Params Init_GA_Params() {
     GA_Params params;
-    params.population_size = 100;
-    params.generations = 200;
+    params.population_size = 50;
+    params.generations = 100;
     params.crossover_rate = 0.7;
     params.mutation_rate = 0.4;
     params.selection_method = "roulette";
@@ -441,7 +441,7 @@ Solution Tabu_Search_with_GA(Config& cfg, int maxIter, int tabuTenure, int numCa
 
   
 int main() {
-    Config cfg = ReadConfigFile("../../datasets/n4_00.dag");
+    Config cfg = ReadConfigFile("../../../datasets/n4_06.dag");
     
 
 

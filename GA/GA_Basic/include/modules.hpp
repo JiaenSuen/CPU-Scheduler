@@ -1,3 +1,7 @@
+#ifndef MODULES_HPP
+#define MODULES_HPP
+
+
 #include "config.hpp"
 #include "evaluation.hpp"
 #include "utils.hpp"
@@ -78,3 +82,6 @@ Solution GenerateNeighbor(const Solution& current, const Config& config) {
 
     return neighbor;
 }
+
+
+#endif

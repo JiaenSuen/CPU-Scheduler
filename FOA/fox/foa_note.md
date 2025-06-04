@@ -1,530 +1,557 @@
-以下為實作 FOX（“A Fox-inspired Optimization Algorithm”）的整體計畫與設計稿。我們將以物件導向的方式切分功能，先定義好各類別、介面與主要函式，再進行後續的程式撰寫。所有說明皆以繁體中文撰述。
+
+以下以「繁體中文」針對您現有的模組（`Config.hpp`、`evaluation.hpp`、`modules.hpp`）做第一階段的「設計稿（Blueprint）」。此設計稿將分為三個主要類別，並說明每個類別的責任、成員欄位與方法，以及它們之間的互動。待設計稿確認無誤後，再進行逐步實作。
 
 ---
 
-## 一、演算法概述
+# 一、整體演算法流程概覽
 
-FOX 演算法靈感來自狐狸在狩獵與領域搜尋時展現的探索與開發行為，核心要點包含：
+FOX（Fox-inspired Optimization Algorithm）是一種以狐狸覓食、領域探索與社會搬遷行為為啟發的群體最佳化方法。在本例中，我們要用它來解「排程問題」（Schedule），已經由 `Solution` 類別承載每個解（包含 `ss`、`ms`、以及成本 `cost`），並且透過 `Solution_Function(...)` 計算適應值（makespan）。大致流程如下：
 
-1. **領域探索** （Exploration）：狐狸透過搜尋更廣範圍的獵物區域來尋找潛在解。
-2. **局部開發** （Exploitation）：一旦發現較佳位置，即聚焦於該區域進行更精細搜尋。
-3. **動態更新** （Dynamic Update）：狐狸群體根據環境回饋不斷更新自身位置與速度。
+1. **讀入問題設定（Config）**
 
-演算法大致流程：
+   由使用者呼叫 `ReadConfigFile(...)` 取得 `Config cfg`，裡面包含任務數、處理器數、通訊費用、計算成本、前置關係等資訊。
+2. **設定 FOX 參數（FOX_Parameters）**
 
-1. **初始化** ：隨機產生多隻「狐狸」作為初始群體，每隻狐狸代表一個可行解。
-2. **評估適應度** ：針對每隻狐狸計算其對應問題的適應值（Fitness）。
-3. **狸穴更新** ：每隻狐狸根據某種移動規則（含領域探索與局部開發策略）產生新位置。
-4. **適應度比較** ：若新位置適應度更佳，則狐狸移動至新位置；否則保留原位置。
-5. **迭代終止** ：重覆步驟 2～4，直到達到迭代次數或滿足收斂條件。
+   定義族群大小（population）、最大迭代次數（maxIter）、探索半徑、收斂因子等。
+3. **初始化 FOX 族群**
 
----
+   * 使用者可呼叫現有的輔助函式 `GenerateInitialSolution(cfg, false)` 產生一個隨機 `Solution`。
+   * 每個 `Fox_Agent` 建構時，呼叫 `GenerateInitialSolution(...)` 取得一個初始排程解，並用 `Solution_Function(...)` 計算適應值，紀錄為「個體最佳」（個體歷史最優）。
+4. **主迴圈（Iteration Loop）**
 
-## 二、主要類別與函式設計
+   迭代至 `maxIter` 為止，每一代執行：
 
-我們將拆分以下幾個關鍵模組／類別，各自負責不同職責，最終由一個頂層的 `FOXAlgorithm` 類別協同完成整個演算法流程。
+   1. **本地探索（Local Search）** ：對每隻狐狸代理人，在「鄰域」產生若干候選解（透過微小改動 `ss` 或 `ms`），若有更優則更新。
+   2. **社會搬遷（Relocate / Global Move）** ：每隻狐狸參考全域最佳（Global Best）的解，向其移動或做較大幅度的隨機跳躍，以平衡探索與利用。
+   3. **評估並更新** ：對每隻代理人重新計算適應值，更新個體最優；再由整個族群中挑出「全域最佳」Fox_Agent。
+5. **回傳最終結果**
 
-```
-+----------------------------------+
-|           FOXAlgorithm           |  <--- 演算法控制器
-+----------------------------------+
-| - population: vector<FoxAgent>   |  （狐狸群體）
-| - best_agent: FoxAgent           |  （當前最優狐狸）
-| - max_iterations: int            |  （最大迭代次數）
-| - problem: shared_ptr<Problem>   |  （優化問題物件）
-| - rng: mt19937                   |  （亂數引擎）
-+----------------------------------+
-| + FOXAlgorithm(problem, params)  |  （建構子，讀入問題與參數）
-| + void initialize()              |  （初始化狐狸群體）
-| + void evaluate_all()            |  （評估所有狐狸適應度）
-| + void update_population()       |  （更新狐狸群體位置）
-| + FoxAgent select_best() const   |  （選出當前最優狐狸）
-| + void run()                     |  （執行演算法主迴圈）
-| + vector<double> get_best_solution() |
-+----------------------------------+
+   主程式透過 `FOX_Algorithm fox(params, cfg)` → `auto best = fox.run()` → `best` 便是「全域最佳」代理人，其內含 `ss`、`ms` 與最小 `cost`。
 
-+----------------------------------+
-|           FoxAgent               |  <--- 狐狸個體（解向量 + 狀態）
-+----------------------------------+
-| - position: vector<double>       |  （當前解向量）
-| - fitness: double                |  （當前適應度）
-| - velocity: vector<double>       |  （動量／速度向量，用於移動）
-| - id: int                        |  （狐狸編號，可選）
-+----------------------------------+
-| + FoxAgent(dim, rng)             |  （依維度與亂數引擎隨機生成）
-| + void evaluate(shared_ptr<Problem> problem) |
-| + vector<double> explore()       |  （領域探索行為，回傳新位置）
-| + vector<double> exploit(const FoxAgent& best) |  （局部開發行為，回傳新位置）
-| + void update_position(const vector<double>& new_pos) |
-+----------------------------------+
-
-+----------------------------------+
-|           Problem                |  <--- 抽象問題介面
-+----------------------------------+
-| - dimension: int                 |  （決策變數維度）
-| - lower_bound: vector<double>    |  （各維度下界）
-| - upper_bound: vector<double>    |  （各維度上界）
-+----------------------------------+
-| + Problem(dim, lb, ub)           |  （建構子）
-| + virtual double fitness(const vector<double>& x) const = 0 |
-|   （純虛擬函式，子類別實作具體目標函式）        |
-| + bool in_bounds(const vector<double>& x) const      |
-|   （檢查 x 是否在邊界內）                      |
-+----------------------------------+
-
-+----------------------------------+
-|         BenchmarkProblem         |  <--- 範例問題類別
-+----------------------------------+
-|  (繼承自 Problem)                |
-+----------------------------------+
-| + BenchmarkProblem(dim, lb, ub)  |
-| + double fitness(const vector<double>& x) const override |
-|   （具體實作某常見測試函式，如 Rastrigin、Sphere 等）   |
-+----------------------------------+
-
-+----------------------------------+
-|        FOXParameters             |  <--- 演算法參數容器
-+----------------------------------+
-| - population_size: int           |
-| - alpha: double                  |  （領域探索速率參數）
-| - beta: double                   |  （局部開發速率參數）
-| - vmax: double                   |  （速度上限）
-| - tol: double                    |  （收斂容忍度，可選） 
-+----------------------------------+
-| + FOXParameters(...)             |  （建構子，初始化各參數）      |
-+----------------------------------+
-```
-
-### 類別職責說明
-
-1. **FOXAlgorithm**
-   * 讀取並保存我們要優化的 `Problem` 物件（例如 BenchmarkProblem）。
-   * 根據 `FOXParameters` 來配置群體大小、參數等。
-   * 管理狐狸群體（`population`）與全局最優解（`best_agent`）。
-   * 包含主迴圈：`initialize() → evaluate_all() → iter( update_population(); evaluate_all(); 更新 best_agent ) → 結束`。
-   * 提供 `get_best_solution()` 回傳最終最優解向量。
-2. **FoxAgent**
-   * 儲存單一狐狸個體的「位置向量」（即可行解）。
-   * 儲存對應的 `fitness` 與移動時所需的 `velocity`。
-   * 提供 `explore()`（領域探索）及 `exploit()`（局部開發）的行為函式，傳回新的候選位置。
-   * `evaluate()`：呼叫 `Problem::fitness(...)` 來計算適應度。
-   * `update_position(...)`：若新的候選位置符合條件，則更新自身位置與速度。
-3. **Problem（抽象基底）**
-   * 定義所有優化問題都需實作的介面：
-     * 決策變數維度 `dimension`、上下界 `lower_bound` / `upper_bound`。
-     * 純虛擬函式 `fitness(...)`：給定一個向量回傳對應目標函式值。
-     * `in_bounds(...)`：判斷解是否在範圍內。
-4. **BenchmarkProblem（範例實作）**
-   * 繼承自 `Problem`，實作具體目標函式（如 Sphere、Rosenbrock、Rastrigin 等）。
-   * 方便開發與測試時直接插入。
-5. **FOXParameters**
-   * 包含關鍵參數：
-     * **population_size** （群體大小）
-     * **alpha** （領域探索係數）
-     * **beta** （局部開發係數）
-     * **vmax** （速度限制）
-     * **tol** （收斂容忍度，如最大迭代若解未大幅改變便停止）
+接下來分別詳細說明三個類別該如何設計。
 
 ---
 
-## 三、函式介面詳細規劃
+# 二、類別一：FOX_Parameters
 
-以下列出每個類別中最重要的公開（public）函式與預期行為，僅示意主要參數與回傳型態。
-
-### 1. FOXAlgorithm
+ **責任** ：集中管理演算法參數，提供給 Agent 層與 Algorithm 層存取。
 
 ```cpp
-class FOXAlgorithm {
+// 檔名：FOX_Parameters.hpp
+#ifndef FOX_PARAMETERS_HPP
+#define FOX_PARAMETERS_HPP
+
+#include <vector>
+#include <random>
+
+class FOX_Parameters {
+public:
+    // 建構子：帶入必要參數
+    FOX_Parameters(
+        unsigned int population_size_,
+        unsigned int max_iterations_,
+        double initial_alpha_,        // 本地探索半徑初始值
+        double final_alpha_,          // 本地探索半徑最小值（可讓 alpha 線性遞減）
+        double beta_,                 // 社會搬遷強度參數
+        double gamma_,                // 全域隨機跳躍強度參數
+        unsigned int local_neighbors_, // 本地探索時要產生的鄰居數量
+        unsigned int seed_ = std::random_device{}()
+    );
+
+    // Accessors / Mutators
+    unsigned int getPopulationSize() const;
+    unsigned int getMaxIterations() const;
+
+    double getAlpha(unsigned int iteration) const; // 若 alpha 隨迭代遞減
+    double getBeta() const;
+    double getGamma() const;
+    unsigned int getLocalNeighbors() const;
+
+    std::mt19937& getRNG();
+
 private:
-    vector<FoxAgent> population;        // 狐狸群體
-    FoxAgent best_agent;                // 當前最佳狐狸
-    shared_ptr<Problem> problem;        // 優化問題
-    FOXParameters params;               // 演算法參數
-    int max_iterations;                 // 最大迭代次數
-    mt19937 rng;                        // 隨機數引擎
+    unsigned int population_size;
+    unsigned int max_iterations;
 
-public:
-    // 建構：接收問題指標、參數與最大迭代次數
-    FOXAlgorithm(shared_ptr<Problem> problem_,
-                 const FOXParameters& params_,
-                 int max_iterations_);
+    double alpha_initial;
+    double alpha_final;
+    double beta;
+    double gamma;
+    unsigned int local_neighbors; 
 
-    // 初始化狐狸群體位置與速度
-    void initialize();
+    unsigned int seed;
+    std::mt19937 rng; 
 
-    // 對整個群體計算適應度
-    void evaluate_all();
-
-    // 選出群體中最優狐狸
-    FoxAgent select_best() const;
-
-    // 根據 FOX 規則更新所有狐狸位置
-    void update_population();
-
-    // 執行主迴圈
-    void run();
-
-    // 取得最終最佳解向量
-    vector<double> get_best_solution() const;
+    // 若要實作「alpha 隨代衰減」，可在線性插值
+    // alpha(t) = alpha_initial - (alpha_initial - alpha_final) * (t / max_iterations)
 };
+
+#endif
 ```
 
-* **initialize()**
-  * 隨機產生 `params.population_size` 隻狐狸，使用 `FoxAgent(dim, rng)` 建構。
-  * 設定 `best_agent` 為第一隻或適應度最低（或最高，視優化問題而定）。
-* **evaluate_all()**
-  * 對每隻 `population[i]` 呼叫 `population[i].evaluate(problem)`，計算並更新其 `fitness`。
-  * 比較更新 `best_agent`。
-* **select_best()**
-  * 在 `population` 中找到適應度最優的那隻，回傳一份 copy。
-* **update_population()**
-  * 對於每隻 `fox`，
-    1. 先呼叫 `fox.explore()` 取得一組新候選位置 `pos_explore`，若 `pos_explore` 在範圍內且適應度更佳，則更新該狐狸位置；
-    2. 接著呼叫 `fox.exploit(best_agent)` 取得新候選位置 `pos_exploit`，再做同樣檢查與更新；
-    3. 如有需要可合併 Exploration/Exploitation 產生最優子候選解。
-  * 動態調整速度向量（若使用速度概念）。
-* **run()**
-  * 呼叫 `initialize()` → `evaluate_all()` → `for iter=1..max_iterations { update_population(); evaluate_all(); ...收斂或更新 best_agent }` → 結束。
-* **get_best_solution()**
-  * 回傳 `best_agent.position`。
+### 解釋
 
-### 2. FoxAgent
+1. **population_size** ：族群中狐狸（代理人）的數量。
+2. **max_iterations** ：允許的最大世代迭代次數。
+3. **alpha_initial** 、 **alpha_final** ：本地探索的「最大擾動幅度」與「最小擾動幅度」，可讓 `alpha` 隨世代數線性衰減。
+4. **beta** ：在「社會搬遷（Relocation）」中，用於控制向全域最佳靠近的強度。
+5. **gamma** ：用於「全域隨機跳躍」的強度。
+6. **local_neighbors** ：每隻狐狸在本地探索時，要生成的鄰居數量（隨機候選解）。
+7. **rng** ：統一的隨機數生成器，以 `seed` 初始化。
+8. **getAlpha(iteration)** ：傳入目前世代 `iteration`，回傳一個介於 `alpha_initial` 與 `alpha_final` 之間的當前 `alpha` 值（線性插值）。
+
+* 例如：
+  ```cpp
+  double FOX_Parameters::getAlpha(unsigned int t) const {
+      double ratio = static_cast<double>(t) / static_cast<double>(max_iterations);
+      return alpha_initial - (alpha_initial - alpha_final) * ratio;
+  }
+  ```
+
+---
+
+# 三、類別二：Fox_Agent（繼承自 Solution）
+
+ **責任** ：封裝單一隻狐狸代理人的「排程解」（`ss`、`ms`、`cost`）及 FOX 演算法中「行為」的操作（Local Search、Relocate）。同時保留「個體歷史最優」以便比較。
 
 ```cpp
-class FoxAgent {
+// 檔名：Fox_Agent.hpp
+#ifndef FOX_AGENT_HPP
+#define FOX_AGENT_HPP
+
+#include "config.hpp"
+#include "evaluation.hpp"
+#include "modules.hpp"      // 取得 GenerateInitialSolution 與外部 rng
+#include "FOX_Parameters.hpp"
+#include <vector>
+#include <random>
+
+class Fox_Agent : public Solution {
+public:
+    // 建構子：隨機產生初始解
+    Fox_Agent(const Config& cfg, FOX_Parameters& params);
+
+    // 複製與賦值預設即可
+    Fox_Agent(const Fox_Agent& other) = default;
+    Fox_Agent& operator=(const Fox_Agent& other) = default;
+
+    // 取得本隻代理人的適應值（makespan）
+    double getFitness() const;
+
+    // 更新適應值，並同步更新 cost
+    void updateFitness(const Config& cfg);
+
+    // 本地探索：在當前解的鄰域中隨機產生若干鄰居 (local_neighbors)，若有更優則更新
+    void localSearch(const Config& cfg, FOX_Parameters& params, unsigned int current_iteration);
+
+    // 社會搬遷：向全域最佳靠攏或做全域跳躍
+    void relocate(const Fox_Agent& globalBest, const Config& cfg, FOX_Parameters& params, unsigned int current_iteration);
+
+    // 取得個體歷史最優解
+    const std::vector<int>& getBestSS() const;
+    const std::vector<int>& getBestMS() const;
+    double getBestFitness() const;
+
 private:
-    vector<double> position;    // 當前解向量
-    vector<double> velocity;    // 速度 / 動量
-    double fitness;             // 當前適應度
-    int id;                     // (可選) 狐狸編號
-    mt19937* rng_ptr;           // 指向外部亂數引擎
+    // 個體歷史最優
+    std::vector<int> best_ss;
+    std::vector<int> best_ms;
+    double best_fitness;
 
-public:
-    // 建構：給定維度 dim 與亂數引擎指標
-    FoxAgent(int dim, mt19937& rng, int id_ = -1);
+    // 擴充現有 Solution 類別所需儲存的臨時向量
+    std::vector<int> temp_ss;
+    std::vector<int> temp_ms;
 
-    // 計算並更新 fitness
-    void evaluate(shared_ptr<Problem> problem);
+    std::mt19937& rngRef;   // 來自 FOX_Parameters::getRNG()
 
-    // 領域探索：以衝量 (alpha) 及隨機方向尋找新位置
-    vector<double> explore(double alpha, const vector<double>& lb, const vector<double>& ub);
+    // 產生一個鄰居解：在當前 (ss, ms) 基礎上做微小隨機擾動
+    void generateNeighbor(const Config& cfg, FOX_Parameters& params, 
+                          std::vector<int>& out_ss, std::vector<int>& out_ms, 
+                          double alpha);
 
-    // 局部開發：以當前最優狐狸位置 best_pos 做引導 (beta)
-    vector<double> exploit(const FoxAgent& best, double beta, const vector<double>& lb, const vector<double>& ub);
+    // 輔助：兩個整數向量隨機交換位置 (swap mutation)
+    void swapTwoTasks(std::vector<int>& ss_vec);
 
-    // 更新位置與速度（若通過 fitness 檢查）
-    void update_position(const vector<double>& new_pos, double new_fitness);
+    // 輔助：隨機變動某些任務的機器配置 (ms_vec)
+    void mutateMachineAssignment(const Config& cfg, std::vector<int>& ms_vec, double alpha);
 
-    // 存取函式：取得 position、fitness、velocity
-    const vector<double>& get_position() const;
-    double get_fitness() const;
-    const vector<double>& get_velocity() const;
+    // 初始化過程：隨機產生一個 valid Solution
+    void initializeRandom(const Config& cfg, FOX_Parameters& params);
+
+    // 更新「個體歷史最優」
+    void updateBestHistory();
+
+    // 檢查 candidate_ss, candidate_ms 是否比目前更優（依 Makespan 比較）
+    bool isBetter(const std::vector<int>& candidate_ss, 
+                  const std::vector<int>& candidate_ms,
+                  const Config& cfg) const;
 };
+
+#endif
 ```
 
-* **建構子**
-  * 隨機初始化 `position[i]` 為 [lb[i], ub[i]] 區間的均勻亂數。
-  * `velocity[i]` 可設為 0 或小範圍亂數。
-  * `fitness` 預設為極大/極小值待計算。
-* **evaluate()**
-  * 若 `position` 在範圍之外，先投影回最近邊界（呼叫 `Problem::in_bounds`）。
-  * `fitness = problem->fitness(position)`，並儲存。
-* **explore(alpha, lb, ub)**
-  * 根據 FOX 演算法論文所定義的“領域探索”公式，例如：
-    ```
-    new_pos[i] = position[i] + alpha * rand_uniform(-1, 1) * (ub[i] - lb[i]);
-    ```
-  * 回傳 `new_pos`，但不改變 `this->position`；由呼叫端比較適應度之後再決定是否更新。
-* **exploit(best, beta, lb, ub)**
-  * 以全局最優狐狸位置 `best.get_position()` 為引導目標：
-    ```
-    new_pos[i] = position[i] + beta * rand_uniform(0, 1) * (best_pos[i] - position[i]);
-    ```
-  * 回傳 `new_pos`。
-* **update_position(new_pos, new_fitness)**
-  * 檢查 `new_pos` 是否在 `[lb, ub]` 之內。若超出則投影。
-  * 與原本 `fitness` 比較，若 `new_fitness` 更佳，則更新 `position = new_pos`、`fitness = new_fitness`，並同步更新 `velocity = new_pos - old_pos`。
+## Fox_Agent 成員說明
 
-### 3. Problem（純抽象）
+1. **欄位**
+   * `best_ss`、`best_ms`：紀錄該代理人「歷史以來最好的排程順序 (ss) 與機器配置 (ms)」。
+   * `best_fitness`：對應上述 `(best_ss, best_ms)` 的最低 makespan。
+   * `temp_ss`、`temp_ms`：在本地探索或搬遷時，暫存候選解。
+   * `rngRef`：引用同一顆隨機數引擎，來自 `FOX_Parameters::getRNG()`。
+2. **建構子 `Fox_Agent(const Config& cfg, FOX_Parameters& params)`**
+   * 功能：
+     1. 呼叫 `initializeRandom(cfg, params)`：使用現有的 `GenerateInitialSolution(cfg,false)` 產生隨機 `Solution sol0`，並將 `sol0.ss`、`sol0.ms` 複製到 `this->ss`、`this->ms`。
+     2. 透過 `Solution_Function(*this, cfg)` 計算 `this->cost`，並設 `best_ss = ss`、`best_ms = ms`、`best_fitness = cost`。
+     3. 將 `rngRef = params.getRNG()`。
+3. **`void updateFitness(const Config& cfg)`**
+   * 功能：
+     * 直接呼叫 `Solution_Function(*this, cfg)` → 取得 `ScheduleResult` → 更新 `this->cost`。
+     * 若 `this->cost < best_fitness`，則更新 `best_ss = ss`、`best_ms = ms`、`best_fitness = cost`。
+4. **`bool isBetter(candidate_ss, candidate_ms, cfg) const`**
+   * 功能：
+     * 建立一個暫時 `Solution temp; temp.ss = candidate_ss; temp.ms = candidate_ms;`。
+     * 呼叫 `auto res = Solution_Function(temp, cfg)`，比較 `res.makespan` 與 `best_fitness`（或與 `this->cost`）。
+     * 若更低則回傳 `true`。
+5. **`void generateNeighbor(const Config& cfg, FOX_Parameters& params, out_ss, out_ms, double alpha)`**
+   * 功能：
+     * 先令 `out_ss = this->ss`，`out_ms = this->ms`。
+     * **對 `ss` 做 swap mutation** ：以機率或次數為基準隨機交換兩個任務的位置，交換幅度可參考 `alpha`（例如，若 `alpha` 大，可允許多次交換）。
+     * 比方說：根據 `alpha` 決定 swap 次數 `k = ⌈alpha * ss.size()⌉`，隨機做 `k` 次兩個 index 的交換。
+     * **對 `ms` 做局部變動** ：針對任務 i，依機率 `p = alpha` 隨機將其指派到不同處理器（`rngRef() % cfg.thePCount`）。
+     * 產生完後，再呼叫 `Solution_Function(temp, cfg)` 驗證可行性（雖然此問題若只是隨機指派、交換並不會違反「任務序」規則），然後回傳 `(out_ss, out_ms)`。
+6. **`void localSearch(const Config& cfg, FOX_Parameters& params, unsigned int current_iteration)`**
+   * 功能：
+     1. 先計算當前 `alpha = params.getAlpha(current_iteration)`。
+     2. 重複 `k = params.getLocalNeighbors()` 次：
+        * 呼叫 `generateNeighbor(...)` 得到 `candidate_ss`、`candidate_ms`。
+        * 若 `isBetter(candidate_ss, candidate_ms, cfg)`，則：
+          * `this->ss = candidate_ss; this->ms = candidate_ms; this->updateFitness(cfg);`
+          * `updateBestHistory()` 更新個體歷史最優，並且可以在這裡決定「是否繼續在此新位置找更好」或跳出。
+     3. 完成本地探索後，最終將此輪的新 `ss, ms, cost` 與 `best_ss, best_ms, best_fitness` 同步。
+7. **`void relocate(const Fox_Agent& globalBest, const Config& cfg, FOX_Parameters& params, unsigned int current_iteration)`**
+   * 功能：
+     1. 先計算當前 `beta = params.getBeta()`、`gamma = params.getGamma()`。
+     2. 「向全域最佳靠攏」：
+        * 以機率 `p = beta` 決定是否採用「向 globalBest.best_ss, best_ms 靠攏」。
+        * 若要靠攏，則對 `ss`、`ms` 同步做微幅調整：
+          * 例：從目前 `this->ss` 到 `globalBest.best_ss`，取兩段之間的交集（crossover-like 操作），或隨機選擇 globalBest 屬性。
+          * 或者：以「partial matching crossover (PMX)」概念，把 `this->ss` 中靠近 `globalBest.best_ss` 的片段交換到 `this->ss`。
+        * 對 `ms` 同理：以某個比率把 `globalBest.best_ms` 的部分指派覆蓋到 `this->ms`。
+     3. 「全域隨機跳躍」：以機率 `1 - beta`，使用 `gamma` 做更大範圍的隨機擾動：
+        * 例如：直接重採樣 `ms[i] = rngRef() % cfg.thePCount` 或 `swapTwoTasks(ss)` 多次。
+     4. 最後 `updateFitness(cfg)` → 更新 `cost`，並 `updateBestHistory()`。
+8. **`void updateBestHistory()`**
+   * 如果 `this->cost < best_fitness`，則更新 `best_ss = ss; best_ms = ms; best_fitness = cost;`。
+
+---
+
+# 四、類別三：FOX_Algorithm
+
+ **責任** ：統籌 FOX 演算法流程，管理全體狐狸代理人、迭代、並回傳最終全域最佳解。
 
 ```cpp
-class Problem {
-protected:
-    int dimension;
-    vector<double> lower_bound;
-    vector<double> upper_bound;
+// 檔名：FOX_Algorithm.hpp
+#ifndef FOX_ALGORITHM_HPP
+#define FOX_ALGORITHM_HPP
 
+#include "config.hpp"
+#include "FOX_Parameters.hpp"
+#include "Fox_Agent.hpp"
+#include <vector>
+
+class FOX_Algorithm {
 public:
-    Problem(int dim, const vector<double>& lb, const vector<double>& ub);
+    // 建構子：傳入配置檔與 FOX 參數
+    FOX_Algorithm(const Config& cfg_, FOX_Parameters& params_);
 
-    virtual ~Problem() = default;
+    // 執行演算法，回傳全域最佳代理人
+    Fox_Agent run();
 
-    // 需由子類別實作：給定向量 x 回傳對應目標函式值
-    virtual double fitness(const vector<double>& x) const = 0;
+    // (選用) 取得收斂歷史
+    const std::vector<double>& getConvergenceHistory() const;
 
-    // 檢查 x 是否在各維度上下界內
-    bool in_bounds(const vector<double>& x) const {
-        for (int i = 0; i < dimension; ++i) {
-            if (x[i] < lower_bound[i] || x[i] > upper_bound[i]) return false;
-        }
-        return true;
-    }
+private:
+    const Config& cfg;                  // 問題設定
+    FOX_Parameters& params;             // 參數參考
+    std::vector<Fox_Agent> population;  // 族群
+    Fox_Agent globalBestAgent;          // 全域最佳代理人（複製自 population）
 
-    // 若超出邊界，投影回上下界
-    vector<double> project(const vector<double>& x) const {
-        vector<double> y = x;
-        for (int i = 0; i < dimension; ++i) {
-            if (y[i] < lower_bound[i]) y[i] = lower_bound[i];
-            if (y[i] > upper_bound[i]) y[i] = upper_bound[i];
-        }
-        return y;
-    }
+    std::vector<double> convergenceHistory; // 紀錄每代最佳 fitness
 
-    int get_dimension() const { return dimension; }
-    const vector<double>& get_lb() const { return lower_bound; }
-    const vector<double>& get_ub() const { return upper_bound; }
-};
-```
+    // 私有函式
+    void initializePopulation();
+    void evaluatePopulation();          // 呼叫每隻 Agent 的 updateFitness
+    void updateGlobalBest();            // 找出 population 中最佳的個體
+    void iterate(unsigned int iteration_index); // 單一世代
 
-### 4. BenchmarkProblem（示範）
-
-```cpp
-class SphereProblem : public Problem {
-public:
-    SphereProblem(int dim, const vector<double>& lb, const vector<double>& ub)
-        : Problem(dim, lb, ub) {}
-
-    // Sphere function: f(x) = sum_{i=1}^n x_i^2
-    double fitness(const vector<double>& x) const override {
-        double sum = 0.0;
-        for (double xi : x) sum += xi * xi;
-        return sum;
-    }
+    // 輔助：記錄當前全域最佳的 cost
+    void recordConvergence();
 };
 
-// 若需要多個測試函式，可以再定義 RosenbrockProblem、RastriginProblem 等等。
+#endif
 ```
 
-### 5. FOXParameters
+## FOX_Algorithm 成員說明
 
-```cpp
-struct FOXParameters {
-    int population_size;     // 狐狸數量
-    double alpha;            // 領域探索係數
-    double beta;             // 局部開發係數
-    double vmax;             // 速度上限（若採用速度機制）
-    double tol;              // 收斂容忍度（Optional，可留待未來擴充）
+1. **欄位**
+   * `const Config& cfg;`：排程問題設定，從外部傳入。
+   * `FOX_Parameters& params;`：FOX 參數，從外部傳入引用（讓 `Fox_Agent` 都共用同一個 `rng`）。
+   * `population`：大小為 `params.getPopulationSize()` 的 `Fox_Agent` 向量（vector）。
+   * `globalBestAgent`：目前全域最佳代理人，會在每一世代結束時更新。
+   * `convergenceHistory`：記錄每一代的 `globalBestAgent.getBestFitness()`，供後續分析或作圖。
+2. **建構子 `FOX_Algorithm(const Config& cfg_, FOX_Parameters& params_)`**
+   * 功能：
+     1. 初始化 `cfg`、`params` 參考。
+     2. 呼叫 `initializePopulation()`：產生 `population` 中的每一個 `Fox_Agent(cfg, params)`。
+     3. 呼叫 `evaluatePopulation()`：讓所有 `Fox_Agent` 計算初始適應值（建構子裡已經做了一次，但可確保過程）。
+     4. 呼叫 `updateGlobalBest()`：挑出初始全域最佳。
+     5. 將初始最佳 `best_fitness` 加入 `convergenceHistory`。
+3. **`void initializePopulation()`**
+   * 功能：
+     ```cpp
+     population.clear();
+     unsigned int N = params.getPopulationSize();
+     for (unsigned int i = 0; i < N; ++i) {
+         population.emplace_back(cfg, params);
+     }
+     ```
+   * 每個 `Fox_Agent` 建構子內都會「隨機初始化排程」並 `updateFitness()`，然後 `best_ss`、`best_ms`、`best_fitness` 都已設定。
+4. **`void evaluatePopulation()`**
+   * 功能：
+     ```cpp
+     for (auto& agent : population) {
+         agent.updateFitness(cfg);
+     }
+     ```
+   * 確保所有代理人目前的 `ss`、`ms` 都被計算過一次適應值（makespan）。
+5. **`void updateGlobalBest()`**
+   * 功能：
+     ```cpp
+     // 先假設 population[0] 是最優
+     unsigned int bestIdx = 0;
+     double bestVal = population[0].getBestFitness();
+     for (unsigned int i = 1; i < population.size(); ++i) {
+         if (population[i].getBestFitness() < bestVal) {
+             bestVal = population[i].getBestFitness();
+             bestIdx = i;
+         }
+     }
+     globalBestAgent = population[bestIdx]; 
+     ```
+   * 更新完後可呼叫 `recordConvergence()`，把 `bestVal` 存入 `convergenceHistory`。
+6. **`void recordConvergence()`**
+   * 功能：`convergenceHistory.push_back(globalBestAgent.getBestFitness());`
+7. **`void iterate(unsigned int iteration_index)`**
+   * 功能：
 
-    FOXParameters(int pop_size,
-                  double alpha_,
-                  double beta_,
-                  double vmax_,
-                  double tol_ = 1e-6)
-        : population_size(pop_size),
-          alpha(alpha_),
-          beta(beta_),
-          vmax(vmax_),
-          tol(tol_) {}
-};
+     1. **Local Search 階段** ：
+
+     ```cpp
+     for (auto& agent : population) {
+         agent.localSearch(cfg, params, iteration_index);
+     }
+     ```
+
+     1. **更新「暫時全域最佳」** （可選擇先跑一次，確保 Relocate 用到的是最先被 localSearch 更新過的全局最佳）：
+
+     ```cpp
+     updateGlobalBest();
+     ```
+
+     1. **Relocation 階段** ：
+
+     ```cpp
+     for (auto& agent : population) {
+         agent.relocate(globalBestAgent, cfg, params, iteration_index);
+     }
+     ```
+
+     1. **重新評估整個族群** ：
+
+     ```cpp
+     evaluatePopulation();
+     updateGlobalBest();
+     ```
+
+     1. **紀錄收斂值** ：
+
+     ```cpp
+     recordConvergence();
+     ```
+8. **`Fox_Agent run()`**
+   * 功能：
+     ```cpp
+     for (unsigned int t = 1; t <= params.getMaxIterations(); ++t) {
+         iterate(t);
+     }
+     return globalBestAgent;
+     ```
+9. **`const std::vector<double>& getConvergenceHistory() const`**
+   * 若要觀察每代的最佳 makespan（收斂曲線），可由外部取用。
+
+---
+
+# 五、設計稿總結
+
+以下整理三個類別的關係與方法，方便快速對照：
+
+```
+┌─────────────────────────────┐
+│       FOX_Parameters        │
+├─────────────────────────────┤
+│ - population_size           │
+│ - max_iterations            │
+│ - alpha_initial, alpha_final│
+│ - beta, gamma               │
+│ - local_neighbors           │
+│ - seed                      │
+│ - std::mt19937 rng          │
+├─────────────────────────────┤
+│ + getPopulationSize()       │
+│ + getMaxIterations()        │
+│ + getAlpha(iter)            │
+│ + getBeta()                 │
+│ + getGamma()                │
+│ + getLocalNeighbors()       │
+│ + getRNG()                  │
+└─────────────────────────────┘
+              ▲
+              │  提供 rng（共用同一顆）
+              │
+┌────────────────────────────────────────────┐
+│                Fox_Agent                  │
+│      (繼承 Solution：ss, ms, cost)        │
+├────────────────────────────────────────────┤
+│ - best_ss, best_ms, best_fitness          │
+│ - temp_ss, temp_ms                        │
+│ - std::mt19937& rngRef                     │
+├────────────────────────────────────────────┤
+│ + Fox_Agent(cfg, params)      // 建構子  │
+│ + double getFitness() const               │
+│ + void updateFitness(cfg)                 │
+│ + void localSearch(cfg,params,iter)       │
+│ + void relocate(globalBest,cfg,params,iter) │
+│ - void generateNeighbor(cfg,params,out_ss,out_ms, alpha)  │
+│ - void swapTwoTasks(std::vector<int>& ss)  │
+│ - void mutateMachineAssignment(cfg,std::vector<int>& ms, alpha) │
+│ - void initializeRandom(cfg,params)       │
+│ - void updateBestHistory()                │
+│ - bool isBetter(candidate_ss, candidate_ms, cfg) const │
+│ + getBestSS(),getBestMS(),getBestFitness()│
+└────────────────────────────────────────────┘
+              ▲                         ▲
+              │                         │
+              │                         │
+┌────────────────────────────────────────────────────┐
+│                 FOX_Algorithm                     │
+├────────────────────────────────────────────────────┤
+│ - const Config& cfg                                │
+│ - FOX_Parameters& params                           │
+│ - std::vector<Fox_Agent> population                │
+│ - Fox_Agent globalBestAgent                        │
+│ - std::vector<double> convergenceHistory           │
+├────────────────────────────────────────────────────┤
+│ + FOX_Algorithm(cfg, params)        // 建構子    │
+│ + Fox_Agent run()                                │
+│ + const std::vector<double>& getConvergenceHistory() │
+│                                                │
+│ - void initializePopulation()                    │
+│ - void evaluatePopulation()                      │
+│ - void updateGlobalBest()                        │
+│ - void recordConvergence()                       │
+│ - void iterate(unsigned int iteration_index)     │
+└────────────────────────────────────────────────────┘
 ```
 
----
-
-## 四、演算法流程示意
-
-以下以文字敘述 FOXAlgorithm::run() 中的主流程，方便後續程式撰寫時對照。
-
-1. **建構與參數設定**
-
-   ```cpp
-   shared_ptr<Problem> prob = make_shared<SphereProblem>(dim, lb, ub);
-   FOXParameters params(pop_size, alpha, beta, vmax);
-   FOXAlgorithm fox_algo(prob, params, max_iters);
-   ```
-2. **初始化**
-
-   ```cpp
-   fox_algo.initialize();
-   // 內部會：
-   //   population.resize(pop_size);
-   //   for each i: population[i] = FoxAgent(dim, rng, i);
-   //   每個 FoxAgent 在 constructor 中隨機設定位置與速度
-   ```
-3. **首次評估**
-
-   ```cpp
-   fox_algo.evaluate_all();
-   // 計算每隻狐狸的 fitness，並更新 best_agent
-   ```
-4. **反覆迴圈**
-
-   ```cpp
-   for (int iter = 0; iter < max_iters; ++iter) {
-       fox_algo.update_population();
-       fox_algo.evaluate_all();
-       current_best = fox_algo.select_best();
-       // 可選：記錄 convergence 資訊、印出當前 iter/best_fitness、或畫圖
-       if (收斂條件達成) break;
-   }
-   ```
-
-   * 在 `update_population()` 內部，對每隻狐狸 `f` 執行以下步驟：
-     1. **探索 (Exploration)**
-        * `new_pos1 = f.explore(params.alpha, lb, ub);`
-        * 若 `problem->in_bounds(new_pos1)`，則計算 `fitness1 = problem->fitness(new_pos1)`，若 `fitness1` 更佳，則 `f.update_position(new_pos1, fitness1)`。
-     2. **開發 (Exploitation)**
-        * 在探索後或同時，取全局最佳狐狸 `best = select_best()`，執行
-
-          `new_pos2 = f.exploit(best, params.beta, lb, ub);`
-        * 同樣檢查並更新。
-     3. **速度控制（若有）**
-        * 若設置速度上限 `vmax`，則對 `f.velocity` 做裁切：
-          ```
-          for (i = 0..dim-1)
-             if (|velocity[i]| > vmax) velocity[i] = sign(velocity[i]) * vmax;
-          ```
-        * 實際位置更新由 `update_position()` 負責。
-5. **輸出結果**
-
-   ```cpp
-   auto best_sol = fox_algo.get_best_solution();
-   // 印出或回傳 best_sol 以及對應 fitness
-   ```
+* **階層關係**
+  * `FOX_Algorithm` 持有一個 `FOX_Parameters&`（所有代理人共用同一個隨機引擎）。
+  * `FOX_Algorithm` 會產生多個 `Fox_Agent`，每個 `Fox_Agent` 則有自己的 `best_ss`、`best_ms`、但它們的隨機種子由同一個 `rng`（來自 `params.getRNG()`）控制，以確保可重現性。
+  * `Fox_Agent` 繼承自 `Solution`（擁有 `ss`、`ms`、`cost` 欄位），並新增 FOX 特有的本地探索與搬遷行為。
+* **流程互動**
+  1. 在 `FOX_Algorithm` 建構子中呼叫 `initializePopulation()` → 每個 `Fox_Agent` 隨機產生一組可行解，並 `updateFitness()` → 同時 `best_ss`、`best_ms`、`best_fitness` 初始化。
+  2. `FOX_Algorithm` 立即呼叫 `updateGlobalBest()` → 得到初始全域最佳。
+  3. 迴圈 `for t in [1..maxIter]`：
+     * `for each agent in population: agent.localSearch(...)`
+     * `updateGlobalBest()`
+     * `for each agent in population: agent.relocate(globalBestAgent, ...)`
+     * `evaluatePopulation()` → 每個代理人更新 `cost`、並在 `updateFitness()` 中同步更新各自 `best_fitness`
+     * `updateGlobalBest()` → 更新本代全域最佳
+     * `recordConvergence()` → 把本代全域最佳 fitness 推入 `convergenceHistory`
+* **參數演進**
+  * `alpha`：隨代衰減，讓本地擾動範圍逐漸縮小；
+  * `beta`：保持固定，或也可隨代微調（視論文思路）；
+  * `gamma`：全域跳躍強度，可讓某些代理人在低機率下做較大擾動。
 
 ---
 
-## 五、各函式與參數之間的關係
+# 六、後續實作順序建議
 
-* **FOXAlgorithm.initialize()**
-  * 透過 `FoxAgent(dim, rng, id)` 產生初始狐狸，內部呼叫 `FoxAgent` 建構子，隨機生成 `position`、`velocity`，並將 `fitness` 設為極大 / 極小，此時尚未評估。
-* **FOXAlgorithm.evaluate_all()**
-  * 逐一呼叫 `FoxAgent.evaluate(problem)`，內部執行 `problem->fitness(position)`，並更新該隻狐狸的 `fitness`。
-  * 同時與 `best_agent` 做比較，若更優則更新 `best_agent`。
-* **FOXAlgorithm.update_population()**
-  * **取得** 全局最佳：`auto best = select_best()`。
-  * 對每隻 `population[i]` 呼叫
-    ```cpp
-    // 領域探索
-    auto pos1 = population[i].explore(params.alpha, lb, ub);
-    double f1 = problem->fitness(pos1);
-    if (f1 < population[i].get_fitness()) {
-        population[i].update_position(pos1, f1);
-    }
-    // 局部開發
-    auto pos2 = population[i].exploit(best, params.beta, lb, ub);
-    double f2 = problem->fitness(pos2);
-    if (f2 < population[i].get_fitness()) {
-        population[i].update_position(pos2, f2);
-    }
-    ```
-  * 每次 `update_position()` 都須確保新位置 `new_pos` 在邊界內，若不在則呼叫 `problem->project(new_pos)`，然後再計算適應度。
-  * 更新後的 `velocity = new_pos - old_pos`。
-* **FoxAgent.explore() / exploit()**
-  * **explore(alpha, lb, ub)** ：
-  * 以狐狸當前位置為基準，加上範圍比例的隨機跳動；`alpha` 決定跳動幅度。
-  * 產生維度向量 `new_pos`，直接回傳。
-  * **exploit(best, beta, lb, ub)** ：
-  * 參考最優狐狸位置 `best.get_position()`，以比例 `beta` 往該方向靠近；相當於局部搜尋。
-  * 回傳 `new_pos`。
-* **FoxAgent.update_position(new_pos, new_fitness)**
-  * **邊界檢查** ：呼叫 `problem->project(new_pos)`，將 `new_pos` 投影到上下界內。
-  * **適應度更新** ：直接將 `position = new_pos`、`fitness = new_fitness`。
-  * **速度更新** ：`velocity = new_pos - old_pos`，並對其施加 `vmax` 限制（若啟用速度）。
-
----
-
-## 六、資料結構與成員變數
-
-1. **FOXAlgorithm**
-   * `vector<FoxAgent> population;`
-     * 保存群體中每隻狐狸物件，透過 `population[i].get_position()`／`.get_fitness()` 存取。
-   * `FoxAgent best_agent;`
-     * 每次迭代結束或在 `evaluate_all()` 中更新為當前最小（或最大）適應度的狐狸。
-   * `shared_ptr<Problem> problem;`
-     * 以多型指向我們要優化的問題（可靈活替換不同問題）。
-   * `FOXParameters params;`
-     * 包含迭代參數（α、β、vmax、群體大小等）。
-   * `mt19937 rng;`
-     * 全域亂數引擎，用於 `FoxAgent` 建構子與探索、開發時的隨機數。
-   * `int max_iterations;`
-     * 演算法執行的最大迭代次數。
-2. **FoxAgent**
-   * `vector<double> position;`
-     * 維度即問題 `problem->get_dimension()`。
-   * `vector<double> velocity;`
-     * 同樣為 `dimension` 長度，用於追蹤移動方向與大小。
-   * `double fitness;`
-     * 當前 `position` 對應的適應度。
-   * `int id;`
-     * （Optional）若想在除錯或視覺化時標記狐狸編號，可使用。
-   * `mt19937* rng_ptr;`
-     * 指向外部傳入的亂數引擎，以確保所有狐狸共用同一個引擎而非各自獨立。
-3. **Problem / BenchmarkProblem**
-   * `int dimension;`
-   * `vector<double> lower_bound, upper_bound;`
-   * 具體問題子類別須實作 `double fitness(const vector<double>& x) const`。
-4. **FOXParameters**
-   * `int population_size;`
-   * `double alpha, beta, vmax, tol;`
+1. **建立檔案**
+   * `FOX_Parameters.hpp`
+   * `Fox_Agent.hpp` + `Fox_Agent.cpp`
+   * `FOX_Algorithm.hpp` + `FOX_Algorithm.cpp`
+2. **逐步實作 `FOX_Parameters`**
+   * 編寫建構子，初始化所有欄位、`rng(seed) = mt19937(seed_)`。
+   * 實作各種 `getXxx()`，以及 `getAlpha(iter)` 線性插值。
+3. **實作 `Fox_Agent`**
+   * 在 `Fox_Agent.hpp` 中先寫好成員宣告。
+   * `Fox_Agent.cpp`：
+     1. `initializeRandom(cfg, params)` → `GenerateInitialSolution(cfg,false)` → 設定 `ss, ms` → `updateFitness(cfg)` → `best_ss, best_ms, best_fitness`。
+     2. `updateFitness(cfg)` → 呼叫 `Solution_Function(*this, cfg)` → 更新 `this->cost` → 如果更好則更新 `best_xxx`。
+     3. `isBetter(...)` → 對候選解做暫時 `Solution temp` → `Solution_Function(temp,cfg)` → 比較 `makespan`。
+     4. `generateNeighbor(...)` → 依據 `alpha` 先對 `ss` 做 `swapTwoTasks(...)` 多次、再對 `ms` 做隨機指派微擾。
+     5. `localSearch(...)` → 迴圈 `params.getLocalNeighbors()` 次呼叫 `generateNeighbor` → 比較是否更好 → 若更好則更新。
+     6. `relocate(...)` → 根據 `beta` 做向 `globalBest` 靠攏或 `gamma` 做全域跳躍 → 更新後呼叫 `updateFitness(cfg)`。
+     7. `updateBestHistory()` → 若 `this->cost < best_fitness`，則更新 `best_xxx`。
+4. **實作 `FOX_Algorithm`**
+   * `FOX_Algorithm.hpp` 定義好成員。
+   * `FOX_Algorithm.cpp`：
+     1. 建構子 → 初始化 `population` → `evaluatePopulation()` → `updateGlobalBest()` → `recordConvergence()`。
+     2. `evaluatePopulation()` → `for each agent: agent.updateFitness(cfg);`
+     3. `updateGlobalBest()` → 比較 `agent.getBestFitness()` 選出最小值 → `globalBestAgent = population[bestIdx]`。
+     4. `recordConvergence()` → 推入 `globalBestAgent.getBestFitness()`。
+     5. `iterate(t)` → `localSearch` + `updateGlobalBest()` + `relocate` + `evaluatePopulation()` + `updateGlobalBest()` + `recordConvergence()`。
+     6. `run()` → 迴圈呼叫 `iterate(t)` → 回傳 `globalBestAgent`。
+5. **撰寫範例程式 `main.cpp`**
+   * 讀入 `Config cfg = ReadConfigFile("xxx.config");`
+   * `FOX_Parameters params(popSize, maxIter, alpha0, alphaF, beta, gamma, localNeighbors, seed);`
+   * `FOX_Algorithm fox(cfg, params);`
+   * `auto best = fox.run();`
+   * 輸出 `best.getBestSS(), best.getBestMS(), best.getBestFitness()`。
+6. **測試**
+   * 在已知小規模排程範例上，逐步調整 `population_size`、`max_iterations`、`alpha`、`beta`、`gamma`、`local_neighbors`，觀察收斂曲線（可印出 `convergenceHistory` 或匯出 CSV）。
+   * 驗證最終 `best_ss`、`best_ms` 的可行性（透過 `Solution_Function` 的可行性檢查），並比較與其他演算法 (e.g. GA, PSO) 的結果。
 
 ---
 
-## 七、整體程式架構與檔案結構建議
+## 參考檔案結構建議
 
-* `modules.hpp`
-  * 使用者提供的公用模組（顯示介面、計時工具、通用函式）。
-  * 我們假設其中包含如 `os_display` 的函式，方便印出收斂過程、繪製簡單曲線或統計數值。
-* `FOXAlgorithm.hpp` / `FOXAlgorithm.cpp`
-  * 宣告與實作 `FOXAlgorithm` 類別。
-* `FoxAgent.hpp` / `FoxAgent.cpp`
-  * 宣告與實作 `FoxAgent` 類別。
-* `Problem.hpp`
-  * 宣告 `Problem` 抽象基底類別與必要的通用函式（如 `project()`）。
-* `BenchmarkProblem.hpp` / `BenchmarkProblem.cpp`
-  * 實作範例問題，如 Sphere、Rastrigin 等。
-* `FOXParameters.hpp`
-  * 宣告 `FOXParameters` 結構。
-* `main.cpp`
-  * 撰寫測試程式：
-    1. 讀入／設定問題維度、上下界、參數。
-    2. 建立 `shared_ptr<Problem>`。
-    3. 建立 `FOXAlgorithm` 物件，並呼叫 `run()`。
-    4. 印出最終結果與運算時間等資訊。
+```
+project_root/
+├─ include/
+│   ├─ config.hpp
+│   ├─ evaluation.hpp
+│   ├─ modules.hpp
+│   ├─ FOX_Parameters.hpp
+│   ├─ Fox_Agent.hpp
+│   └─ FOX_Algorithm.hpp
+├─ src/
+│   ├─ FOX_Parameters.cpp
+│   ├─ Fox_Agent.cpp
+│   ├─ FOX_Algorithm.cpp
+│   └─ main.cpp
+└─ data/
+    └─ example.config
+```
 
----
-
-## 八、操作流程與後續步驟
-
-1. **確認需求**
-   * 先決定要使用哪個測試問題（Sphere、Rastrigin、Rosenbrock……）。
-   * 決定群體大小、α、β、vmax、迭代次數等超參數。
-2. **撰寫頭文件（.hpp）**
-   * 按照上述設計分別建立 `FOXAlgorithm.hpp`、`FoxAgent.hpp`、`Problem.hpp`、`FOXParameters.hpp`、`BenchmarkProblem.hpp`。
-   * 在 `FOXAlgorithm.hpp` 中只放宣告，將細節實作放到對應的 `.cpp`。
-3. **實作細節（.cpp）**
-   * 先從最基礎的 `Problem`／`BenchmarkProblem` 下手，確保 `fitness()` 與 `project()` 能正常運作。
-   * 接著實作 `FoxAgent`：包含亂數初始化、`explore()`、`exploit()`、`evaluate()`、`update_position()`，並撰寫單元測試（如給一隻狐狸手動呼叫 explore/exploit，檢查是否在上下界內）。
-   * 再實作 `FOXAlgorithm`：包含 `initialize()`、`evaluate_all()`、`select_best()`、`update_population()`、`run()`。
-   * 在 `update_population()` 中需特別留意「探索→評估→更新」與「開發→評估→更新」的順序與邏輯。
-4. **整合測試**
-   * 撰寫 `main.cpp`，載入某個 `BenchmarkProblem`，設定參數後執行 `FOXAlgorithm::run()`。
-   * 打印每次迭代的最優適應度，以確保演算法在收斂。
-   * 嘗試不同參數、不同問題，若收斂效果不佳則調整 α / β 等參數。
-5. **可視化與收斂分析**
-   * 利用 `os_display`（假設 modules.hpp 提供）印出收斂曲線或詳細 log。
-   * 將每代最佳適應度存成 `vector<double>`，並在結束後繪製收斂趨勢圖。
-6. **擴充功能（選做）**
-   * 支援「收斂容忍度」：若多代最佳適應度未改善超過一定門檻，則提前跳出。
-   * 增加更多探索／開發策略變形，例如動態調整 α、β。
-   * 加入並行化特性（若未來需要加速）。
+* `include/` 資料夾放所有 `.hpp` 標頭檔，與原先您提供的 `config.hpp`、`evaluation.hpp`、`modules.hpp` 放在同一層。
+* `src/` 資料夾放具體的實作檔 `.cpp`（包含各類別的實作），以及一隻簡單的 `main.cpp` 做測試。
 
 ---
 
-## 九、小結
+### 小結
 
-* 我們先從「類別與函式規劃」著手，不急著寫程式碼。
-* 核心物件：`FOXAlgorithm`、`FoxAgent`、`Problem` 及其子類別 `BenchmarkProblem`，再加上參數容器 `FOXParameters`。
-* 每個類別負責單一職責，各司其職：FOXAlgorithm 管理演算法流程，FoxAgent 管理個體行為，Problem 管理問題定義。
-* 下一步就是依此草稿分別撰寫各 `.hpp/.cpp`，然後編寫 `main.cpp` 進行整合測試。
+1. **FOX_Parameters** ：管理所有參數與隨機數生成器。
+2. **Fox_Agent** ：繼承自 `Solution`，封裝「隨機初始化」、「本地探索 (`localSearch`)」、「社會搬遷 (`relocate`)」與「個體最優歷史 (`best_ss, best_ms, best_fitness`)」。
+3. **FOX_Algorithm** ：集結整個族群，落實「初始化 → localSearch → relocate → 評估 → 更新全域最佳 → 記錄收斂」之迭代流程，最終回傳 `globalBestAgent`。
 
-待此設計稿無誤，接下來即可開始撰寫實際程式碼。祝實作順利！
+待您確認此「設計稿」無誤之後，即可進入下一步「逐步實作各個 `.cpp`」階段。希望能幫助您按照既有的模組包，清楚地分工與撰寫 FOX 最佳化演算法。祝 開發順利！
