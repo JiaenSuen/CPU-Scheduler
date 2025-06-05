@@ -1,3 +1,7 @@
+#ifndef MODULES_HPP
+#define MODULES_HPP
+
+
 #include "config.hpp"
 #include "evaluation.hpp"
 #include "utils.hpp"
@@ -41,3 +45,6 @@ Solution GenerateInitialSolution(const Config& cfg, bool useHeuristic=false){
 
     return sol;
 }
+
+
+#endif
