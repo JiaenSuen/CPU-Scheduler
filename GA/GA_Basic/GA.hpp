@@ -163,8 +163,8 @@ namespace Selection_For_GA {
 
 
 
-
-Solution Genetic_Algorithm(Config& config , const GA_Params params , vector<double>* Recorder = nullptr) {
+// Genetic Algorith API , Need To Give The Config And Parameter of GA
+Solution Genetic_Algorithm(Config& config , const GA_Params& params , vector<double>* GB_Recorder = nullptr , vector<double>* LB_Recorder = nullptr) {
     
     // Population
     std::vector<Individual> population;

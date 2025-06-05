@@ -18,21 +18,28 @@ struct FOX_Parameters {
     double vmax;           // 速度上界（若要限制速度，否則可設為極大值）
     double tol;            // 收斂容忍度（可選，若不使用可設定為 0）
 
-    FOX_Parameters(int pop_size,
-                  double alpha_,
-                  double beta_,
-                  double vmax_,
-                  double tol_ = 0.0)
-        : population_size(pop_size),
-          alpha(alpha_),
-          beta(beta_),
-          vmax(vmax_),
-          tol(tol_) {}
+    FOX_Parameters( int pop_size , double alpha_ , double beta_ , double vmax_ , double tol_ = 0.0 )
+        : population_size(pop_size), alpha(alpha_), beta(beta_), vmax(vmax_) , tol(tol_) {}
 };
 
 
+
+
+
+
+namespace FOX_Interface {
+
+}
+
+
+
+
+
+
+
+
 // Fox Agent
-class FoxAgent {
+class Fox_Agent {
 private:
     int id;                             // 狐狸編號（可選，用於除錯或記錄）
     int dimension;                      // 維度（與FOXAlgorithm給定維度相同）
@@ -45,7 +52,7 @@ private:
 
 public:
     // 建構子：給定維度、上下界、亂數引擎指標，與 (可選)編號
-    FoxAgent(int id_,
+    Fox_Agent(int id_,
              int dim,
              const vector<double>& lb,
              const vector<double>& ub,
@@ -64,6 +71,6 @@ public:
     void update_position(const vector<double>& new_pos, double new_fitness, double vmax);
 
     // 取得目前資訊（存取器）
-    const vector<double>& get_position() const;
-    double get_fitness() const;
+    const vector<double>& get_position() ;
+    double get_fitness() ;
 };
