@@ -9,38 +9,41 @@
 using namespace std;
 using namespace os_display;
 using namespace std::chrono;
+ 
 
-
-// Avg Cost = 483.210000
+// Avg Cost = 471.910000
 Solution Whale_Optimize(const Config& cfg,
-                        int num_whales = 10,
-                        int max_iter   = 100) {
+                        int num_whales = 40,
+                        int max_iter   = 200) {
+    // 1. 準備族群
     std::vector<Whale> pod; pod.reserve(num_whales);
     for (int i = 0; i < num_whales; ++i)
         pod.emplace_back(cfg);
 
+    // 2. 初始全局最優
     Whale best = *std::min_element(pod.begin(), pod.end(),
                                    [](auto& a, auto& b){ return a.getCost()<b.getCost(); });
 
+    // 3. 迭代更新
     for (int t = 1; t <= max_iter; ++t) {
         double a = 2.0 * (1.0 - double(t)/max_iter);
+
         for (int i = 0; i < num_whales; ++i) {
             int j;
             do { j = rng() % num_whales; } while (j == i);
 
             Whale cand = pod[i].update(best, pod[j], a);
 
-             
-            if (cand.getCost() > pod[i].getCost() && (rng()%100)<10) {
-                cand = pod[i].order_crossover_best(best);
-                cand.evaluate();
-            }
 
-            if (cand.getCost() < pod[i].getCost()) pod[i] = std::move(cand);
-            if (pod[i].getCost() < best.getCost())  best = pod[i];
+            if (cand.getCost() < pod[i].getCost())
+                pod[i] = std::move(cand);
+
+            if (pod[i].getCost() < best.getCost())
+                best = pod[i];
         }
-        //std::cout << "Iter " << t << " best: " << best.getCost() << "\n";
+        //std::cout << "Iter " << t << ": best = " << best.getCost() << "\n";
     }
+
     return static_cast<Solution>(best);
 }
   
@@ -48,7 +51,7 @@ int main() {
     Config cfg = ReadConfigFile("../../datasets/n4_00.dag");
     
     double Avg_Cost = 0;
-    double num_loop = 100;
+    double num_loop = 1000;
  
     for(int i =0;i<num_loop;i++){
         Solution best = Whale_Optimize(cfg);

@@ -18,14 +18,14 @@ using namespace std::chrono;
 int main(){
     
     Config config = ReadConfigFile("../../datasets/n4_00.dag");
-    double count = 5;
+    double count = 10;
     double Avg_Cost = 0;
 
     for (size_t i = 0; i < count; i++)
     {
         GA_Params params_ga;
-        params_ga.population_size = 10;
-        params_ga.generations = 100;
+        params_ga.population_size = 50;
+        params_ga.generations = 200;
         Solution GA_Result = Genetic_Algorithm(config,params_ga);
         cout << "Best makespan: " << GA_Result.cost << "\n";
         show_solution(GA_Result);
