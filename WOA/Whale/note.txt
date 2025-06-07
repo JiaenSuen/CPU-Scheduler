@@ -1,0 +1,16 @@
+/**
+ * Whale 類別：繼承自 Solution，實作離散 WOA 三大行為
+ * 參考文獻：
+ *  - Ezugwu et al. (2021). A Discrete Whale Optimization Algorithm Based on VND for Solving the TSP.
+ *  - Gupta & Deep (2019). A novel approach to solve permutation flow shop scheduling problem using whale optimization algorithm.
+ *  - Sun et al. (2020). A discrete whale optimization algorithm for solving combinatorial problems.
+ */
+
+
+A discrete whale optimization algorithm for the no-wait flow shop scheduling problem
+    雙點交叉（Two-Point Crossover, TPX）：模擬捕獵時鯨魚「圍繞」動作的跨段交換  :  
+    工作基因交叉（Job-Based Crossover, JBX）：依據任務 ID 位置對齊，再補齊剩餘基因，以保留局部優勢結構 
+    Local/Parallel Neighborhood Search 在螺旋式逼近後，以局部搜尋精煉解，平衡全域探索與局部利用
+
+
+    
