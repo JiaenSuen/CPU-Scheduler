@@ -123,9 +123,9 @@ public:
       pars(&pars_),
       X(D, 0.0),
       V(D, 0.0),
-      Fitness(0.0),               // ← 正確地初始化成員變數
+      Fitness(0.0),              
       BestX(D, 0.0),
-      BestFitness(0.0),           // ← 正確地初始化成員變數
+      BestFitness(0.0),           
       norm_dist(0.0, 1.0)
     {
         ss.resize(TCount_);
@@ -137,7 +137,6 @@ public:
     void update_position_exploitation(double p, double Dist_Fox_Prey) {
         // 1. 計算平均時間 t
         std::uniform_real_distribution<double> uni(0.0, 1.0);
-        // 每維各抽一個 Time_ST_j
         double sum_time = 0.0;
         for (int j = 0; j < D; ++j) {
             double ts = uni(pars->rng);
@@ -147,7 +146,8 @@ public:
         double t = tt / 2.0;
         // 2. 計算跳躍高度
         double Jump = calculate_jump(t);
-        // 3. 準備 candidateX, candidateV
+
+        // 3. 暫存舊 X, V, Fitness
         std::vector<double> X_old = X;
         std::vector<double> V_old = V;
         double oldFitness = Fitness;
@@ -175,52 +175,74 @@ public:
                 V_new[i] = X_new[i] - X[i];
             }
         }
+
         // 4. 更新 X, V
         X = X_new;
         V = V_new;
+
         // 5. 計算新適應值
         double newFitness = calculate_fitness();
-        // 如果新適應值不優於舊，回滾
-        if (newFitness >= oldFitness) {
+
+        // 6. 如果新適應值更差 (newFitness <= oldFitness)，才回滾
+        if (newFitness <= oldFitness) {
             X = X_old;
             V = V_old;
             Fitness = oldFitness;
         }
     }
 
+
     // 探索階段更新位置 (Eq.(7)~Eq.(9))
     void update_position_exploration(const std::vector<double>& BestX_current, int it) {
-        // 1. 計算每維 Time_ST_j, 求出 tt, 更新 MinT
         std::uniform_real_distribution<double> uni(0.0, 1.0);
+
+        // 1. 計算每維 Time_ST_j，求出 tt，並更新 MinT（但設下限 0.1）
         double sum_time = 0.0;
         for (int j = 0; j < D; ++j) {
-            double ts = uni(pars->rng);
-            sum_time += ts;
+            sum_time += uni(pars->rng);
         }
         double tt = sum_time / D;
-        if (tt < pars->MinT) pars->MinT = tt;
-        // 2. 計算 a = 2*(it - 1/MaxIt)
-        double a = 2.0 * (static_cast<double>(it) - (1.0 / pars->MaxIt));
-        // 3. Eq.(9): X_new = BestX_current * rand(1,D) * MinT * a
+        pars->MinT = std::max(0.1, std::min(pars->MinT, tt));  // MinT 不低於 0.1
+
+        // 2. 計算 a = 2 * (1 - it/MaxIt)，若負則設 0
+        double a = 2.0 * (1.0 - static_cast<double>(it) / pars->MaxIt);
+        if (a < 0.0) a = 0.0;
+
+        // 3. 暫存舊 X 與舊 Fitness
         std::vector<double> X_old = X;
         double oldFitness = Fitness;
-        std::vector<double> randVec(D);
+
+        // 4. 針對每個維度，同時朝 BestX_current 靠近並加隨機擾動
         for (int i = 0; i < D; ++i) {
-            randVec[i] = uni(pars->rng);
-        }
-        for (int i = 0; i < D; ++i) {
-            double xi = BestX_current[i] * randVec[i] * pars->MinT * a;
+            double r1 = uni(pars->rng);
+            double r2 = uni(pars->rng);
+            // w: 保留原 x 的權重 (可自行設定，例如 0.7)
+            double w = 0.7;
+            // c3: 控制往 BestX_current 靠近的強度 (可自行設定，例如 1.5)
+            double c3 = 1.5;
+
+            // (a) 往 BestX_current 靠近
+            double towardsBest = w * X[i] + c3 * r1 * (BestX_current[i] - X[i]);
+            // (b) 隨機擾動 (規模由 MinT 與 alpha 控制)
+            double randomStep = pars->alpha * r2 * pars->MinT;
+            double xi = towardsBest + randomStep;
+
+            // clamp 到上下界
             if (xi < pars->LowerBound[i]) xi = pars->LowerBound[i];
             if (xi > pars->UpperBound[i]) xi = pars->UpperBound[i];
             X[i] = xi;
         }
-        // 4. 計算新適應值
+
+        // 5. 計算新適應值
         double newFitness = calculate_fitness();
-        if (newFitness >= oldFitness) {
+
+        // 6. 如果新適應值更差 (newFitness <= oldFitness)，則回滾
+        if (newFitness <= oldFitness) {
             X = X_old;
             Fitness = oldFitness;
         }
     }
+
 
     // Clamp 連續向量到上下界
     void clamp_continuous() {

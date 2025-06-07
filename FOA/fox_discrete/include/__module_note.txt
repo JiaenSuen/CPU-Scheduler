@@ -1,0 +1,12 @@
+模組劃分：
+
+將計算排程的函式 (Calculate_schedule) 與解決不可行解的函式 (Solution_Function) 分離，便於維護及擴展。
+
+清晰接口：
+
+透過 ScheduleResult 結構體回傳結果，確保一致性。
+
+錯誤處理：
+
+錯誤訊息集中處理，減少重複代碼。
+
