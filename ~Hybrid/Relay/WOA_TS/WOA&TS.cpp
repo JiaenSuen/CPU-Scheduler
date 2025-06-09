@@ -1,5 +1,5 @@
 #include "include/modules.hpp"
-#include "GA.hpp"
+#include "WOA.hpp"
 #include "tabu_search.hpp"
 
 #include <iostream>
@@ -28,17 +28,14 @@ int main() {
     double Avg_Makespan =0;
     double times = 10;
 
-
-    GA_Params params_ga;
-    params_ga.population_size = 20;
-    params_ga.generations = 100;
+ 
 
 
     for (int i ;i<times;i++){
         
         
-        Solution GA_Result = Genetic_Algorithm(cfg,params_ga);
-        Solution TS_Result = Tabu_Search(cfg, &GA_Result ,maxIter, tabuTenure, numCandidates);
+        Solution WOA_Result = Whale_Optimize(cfg);
+        Solution TS_Result = Tabu_Search(cfg, &WOA_Result ,maxIter, tabuTenure, numCandidates);
         Solution& best =  TS_Result;
 
         cout << "Best makespan: " << best.cost << "\n";

@@ -40,13 +40,12 @@ inline ScheduleResult Calculate_schedule(const vector<int>& ss, const vector<int
     return {startTime, endTime, makespan};
 }
 
-inline bool is_feasible(const ScheduleResult& result, const Config& config, bool show_adjust = false ) {
+inline bool is_feasible(const ScheduleResult& result, const Config& config, bool show_adjust = false) {
     for (const auto& edge : config.theTransDataVol) {
         int from = static_cast<int>(edge[0]);
         int to = static_cast<int>(edge[1]);
         if (result.endTime[from] > result.startTime[to]) {
-            if (show_adjust)
-            cerr << "[Error] Dependency violated: Task " << from << " ends at " << result.endTime[from] 
+            if (show_adjust) cerr << "[Error] Dependency violated: Task " << from << " ends at " << result.endTime[from] 
                  << ", but Task " << to << " starts at " << result.startTime[to] << ".\n";
             return false;
         }
@@ -124,6 +123,5 @@ inline ScheduleResult Solution_Function(Solution& sol, const Config& config , bo
     sol.cost = result.makespan;
     return result;
 }
-
 
 #endif   

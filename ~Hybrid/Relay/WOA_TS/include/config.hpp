@@ -22,7 +22,7 @@ struct Config {
 };
 
 class Solution {
-public:
+    public :
     std::vector<int> ss;  // Schedule of tasks
     std::vector<int> ms; // tasks[index] -> machine ID
     double cost;
@@ -113,9 +113,5 @@ inline Config ReadConfigFile(const std::string& filename) {
 
     return cfg;
 }
-
-
-
-
 
 #endif 
