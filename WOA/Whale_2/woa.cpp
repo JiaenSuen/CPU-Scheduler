@@ -13,8 +13,8 @@ using namespace std::chrono;
 
 // Avg Cost = 471.910000
 Solution Whale_Optimize(const Config& cfg,
-                        int num_whales = 40,
-                        int max_iter   = 100) {
+                        int num_whales = 20,
+                        int max_iter   = 200) {
     // 1. 準備族群
     std::vector<Whale> pod; pod.reserve(num_whales);
     for (int i = 0; i < num_whales; ++i)
@@ -47,11 +47,13 @@ Solution Whale_Optimize(const Config& cfg,
     return static_cast<Solution>(best);
 }
   
+
+
 int main() {
     Config cfg = ReadConfigFile("../../datasets/n4_00.dag");
     
     double Avg_Cost = 0;
-    double num_loop = 1000;
+    double num_loop = 10;
  
     for(int i =0;i<num_loop;i++){
         Solution best = Whale_Optimize(cfg);

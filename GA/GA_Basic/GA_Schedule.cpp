@@ -14,17 +14,17 @@ using namespace std::chrono;
 
 
 
-
+// Avg_Cost : 472.2
 int main(){
     
     Config config = ReadConfigFile("../../datasets/n4_00.dag");
-    double count = 10;
+    double count = 100;
     double Avg_Cost = 0;
 
     for (size_t i = 0; i < count; i++)
     {
         GA_Params params_ga;
-        params_ga.population_size = 50;
+        params_ga.population_size = 20;
         params_ga.generations = 200;
         Solution GA_Result = Genetic_Algorithm(config,params_ga);
         cout << "Best makespan: " << GA_Result.cost << "\n";

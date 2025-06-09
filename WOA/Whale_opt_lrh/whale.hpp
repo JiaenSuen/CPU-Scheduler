@@ -1,10 +1,8 @@
-#ifndef WOA_HPP
-#define WOA_HPP
-
-
-
+#ifndef WHALE_HPP
+#define WHALE_HPP
 
 #include "include/modules.hpp"
+#include "tabu_search.hpp"
 #include <algorithm>
 #include <random>
 #include <numeric>
@@ -19,22 +17,25 @@ private:
 
     // --- Simple discrete operators ---
 
-    static void reverseSS(std::vector<int>& ss) {
-        if (ss.size() < 4) return;
-        std::uniform_int_distribution<int> dist(0, ss.size() - 2);
-        int i = dist(rng), j = dist(rng);
-        if (i > j) std::swap(i, j);
-        std::reverse(ss.begin() + i, ss.begin() + j);
-    }
-
-    void shuffleMS(std::vector<int>& ms, int P) {
+    static void leapMutation(std::vector<int>& ss, std::vector<int>& ms, int P) {
         std::uniform_int_distribution<int> dist(0, P - 1);
-        for (auto& m : ms) {
-            if (std::uniform_real_distribution<>(0, 1)(rng) < 0.3) {
-                m = dist(rng); // 30% 機率重新分派處理器
+
+        // 1. Reverse large segment in ss
+        if (ss.size() >= 4) {
+            int i = rng() % ss.size();
+            int j = rng() % ss.size();
+            if (i > j) std::swap(i, j);
+            std::reverse(ss.begin() + i, ss.begin() + j);
+        }
+
+        // 2. Shuffle 30~50% of ms assignments
+        for (size_t i = 0; i < ms.size(); ++i) {
+            if (std::uniform_real_distribution<>(0.0, 1.0)(rng) < 0.4) {
+                ms[i] = dist(rng);
             }
         }
     }
+
 
     // Swap two positions in schedule sequence ss
     static void swapSS(Vec &seq) {
@@ -82,16 +83,17 @@ public:
 
     Whale update(const Whale &best, const Whale &randWhale, double a, double p) const {
         Whale offspring(*cfg_);
+        std::uniform_real_distribution<double> leap_dist(0.0, 1.0);
         // Exploration vs Exploitation
         if (p < 0.5) {
-            // Exploration: small random mutations [ Search for Prey ]  
+            // Exploration: small random mutations
             offspring.ss = ss;
             offspring.ms = ms;
             swapSS(offspring.ss);
             mutateMS(offspring.ms, cfg_->thePCount);
         } else {
             // Exploitation: combine with best
-            offspring.ss = prefixCrossover(best.ss, ss);   // 與最佳解部分交叉（任務順序）
+            offspring.ss = prefixCrossover(best.ss, ss);
             offspring.ms = ms;
             if (std::abs(a) < 1.0) {
                 // Encircle best: one mutation on ms
@@ -102,74 +104,16 @@ public:
                 mutateMS(offspring.ms, cfg_->thePCount);
             }
         }
+
+        if (leap_dist(rng) < 0.08) {
+            Tabu_Search( *cfg_ ,  &offspring);
+        }
+        
+
         ScheduleResult res = Solution_Function(offspring, *cfg_);
         offspring.cost = res.makespan;
         return offspring;
     }
 };
-
-
-
-Solution Whale_Optimize(const Config& cfg,
-                        int num_whales = 20,
-                        int max_iter   = 150) 
-{
-    // 1. 初始化種群
-    std::vector<Whale> pop;
-    pop.reserve(num_whales);
-    for (int i = 0; i < num_whales; ++i) {
-        pop.emplace_back(cfg);
-    }
-
-    // 2. 找到初始最優
-    Whale best = pop[0];
-    for (auto& w : pop) {
-        if (w.cost < best.cost) best = w;
-    }
-
-    // 3. 迭代演化
-    for (int iter = 1; iter <= max_iter; ++iter) {
-        // 收斂因子 a 隨迭代線性下降從 2 → 0
-        double a = 2.0 * (1.0 - double(iter) / max_iter);
-
-        for (int i = 0; i < num_whales; ++i) {
-            // 選一隻鯨魚 ( i)
-            int rand_idx;
-            do { rand_idx = rng() % num_whales; }
-            while (rand_idx == i);
-
-            Whale& cur = pop[i];
-            Whale& randWhale = pop[rand_idx];
-
-            // 隨機機率 p ∈ [0,1]
-            double p = std::generate_canonical<double, 10>(rng);
-
-            // 更新
-            Whale offspring = cur.update(best, randWhale, a, p);
-            // 若後代更優，替換當前
-            if (offspring.cost < cur.cost) {
-                pop[i] = std::move(offspring);
-            }
-        }
-
-        // 更新全局最優
-        for (auto& w : pop) {
-            if (w.cost < best.cost) best = w;
-        }
-
-        
-        // std::cout << "Iter " << iter << ", best makespan = " << best.cost << "\n";
-    }
-
-   
-    return static_cast<Solution>(best);
-}
-
-
-
-
-
-
-
 
 #endif // WHALE_HPP

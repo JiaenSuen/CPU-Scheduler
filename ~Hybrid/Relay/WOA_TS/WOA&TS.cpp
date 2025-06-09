@@ -34,7 +34,7 @@ int main() {
     for (int i ;i<times;i++){
         
         
-        Solution WOA_Result = Whale_Optimize(cfg);
+        Solution WOA_Result = Whale_Optimize(cfg , 30 , maxIter);
         Solution TS_Result = Tabu_Search(cfg, &WOA_Result ,maxIter, tabuTenure, numCandidates);
         Solution& best =  TS_Result;
 
@@ -45,6 +45,7 @@ int main() {
         cout << "Cost : " << sr.makespan;
         cout<<"\n\n";
         Avg_Makespan+=best.cost;
+        
     }
     Avg_Makespan /= times;
     //system("cls");

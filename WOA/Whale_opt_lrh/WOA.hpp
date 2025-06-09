@@ -18,24 +18,6 @@ private:
     const Config* cfg_;
 
     // --- Simple discrete operators ---
-
-    static void reverseSS(std::vector<int>& ss) {
-        if (ss.size() < 4) return;
-        std::uniform_int_distribution<int> dist(0, ss.size() - 2);
-        int i = dist(rng), j = dist(rng);
-        if (i > j) std::swap(i, j);
-        std::reverse(ss.begin() + i, ss.begin() + j);
-    }
-
-    void shuffleMS(std::vector<int>& ms, int P) {
-        std::uniform_int_distribution<int> dist(0, P - 1);
-        for (auto& m : ms) {
-            if (std::uniform_real_distribution<>(0, 1)(rng) < 0.3) {
-                m = dist(rng); // 30% 機率重新分派處理器
-            }
-        }
-    }
-
     // Swap two positions in schedule sequence ss
     static void swapSS(Vec &seq) {
         int n = seq.size();
@@ -84,14 +66,14 @@ public:
         Whale offspring(*cfg_);
         // Exploration vs Exploitation
         if (p < 0.5) {
-            // Exploration: small random mutations [ Search for Prey ]  
+            // Exploration: small random mutations
             offspring.ss = ss;
             offspring.ms = ms;
             swapSS(offspring.ss);
             mutateMS(offspring.ms, cfg_->thePCount);
         } else {
             // Exploitation: combine with best
-            offspring.ss = prefixCrossover(best.ss, ss);   // 與最佳解部分交叉（任務順序）
+            offspring.ss = prefixCrossover(best.ss, ss);
             offspring.ms = ms;
             if (std::abs(a) < 1.0) {
                 // Encircle best: one mutation on ms
@@ -112,7 +94,7 @@ public:
 
 Solution Whale_Optimize(const Config& cfg,
                         int num_whales = 20,
-                        int max_iter   = 150) 
+                        int max_iter   = 200) 
 {
     // 1. 初始化種群
     std::vector<Whale> pop;
