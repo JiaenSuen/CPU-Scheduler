@@ -16,15 +16,18 @@ using namespace std::chrono;
 
 
 int main() {
-    
     Config cfg = ReadConfigFile("../../datasets/n4_06.dag");
     
+
+    int Num_of_whale = 5;
+
+
     double Avg_Cost = 0;
     double num_loop = 10;
     
     for(int i =0;i<num_loop;i++){
         auto start = std::chrono::high_resolution_clock::now();
-        Solution best = Whale_Optimize(cfg);
+        Solution best = Whale_Optimize(cfg , Num_of_whale);
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         cout << "Time Usage : " << duration.count() << " ms" << std::endl;

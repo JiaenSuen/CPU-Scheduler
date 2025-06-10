@@ -95,6 +95,46 @@ namespace  os_display {
         show_2d_vector(config_data.theTransDataVol);
     }
 
+
+
+
+
+    
+
+    void writeVectorToFile(const vector<double>& data, const string& filename) {
+        ofstream outFile(filename);
+        if (outFile.is_open()) {
+            for (size_t i = 0; i < data.size(); ++i) {
+                outFile << i << " " << data[i] << "\n";
+            }
+            outFile.close();
+            cout << "Data written to " << filename << " successfully." << endl;
+        } else {
+            cerr << "Unable to open file: " << filename << endl;
+        }
+    }
+    void writeTwoVectorsToFile(const vector<double>& data1, const vector<double>& data2, const string& filename) {
+        ofstream outFile(filename);
+        if (outFile.is_open()) {
+            size_t maxSize = max(data1.size(), data2.size());
+            for (size_t i = 0; i < maxSize; ++i) {
+                outFile << i << " ";
+                outFile << (i < data1.size() ? to_string(data1[i]) : "nan") << " ";
+                outFile << (i < data2.size() ? to_string(data2[i]) : "nan") << "\n";
+            }
+            outFile.close();
+            cout << "Data written to " << filename << " successfully." << endl;
+        } else {
+            cerr << "Unable to open file: " << filename << endl;
+        }
+    }
+
+    void Call_Py_Visual (){
+        std::string pythonCommand = "python include/visual.py";  
+        int result = std::system(pythonCommand.c_str());
+    }
+
+
 }
 
 

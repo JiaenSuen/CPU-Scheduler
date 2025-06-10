@@ -10,7 +10,7 @@ using namespace os_display;
 using namespace std::chrono;
 
 
-std::mt19937 rng(std::random_device{}());
+ 
 
 struct SA_Params {
     double T;                   // 初始溫度
@@ -40,13 +40,14 @@ SA_Params& set_SA_param() {
  
 
 // MetaHerustic Interface
-Solution GenerateInitialSolution(const Config& config, bool useHeuristic);
 Solution GenerateNeighbor(const Solution& current, const Config& config) ;
 
-// MetaHerustic Interface
+ 
+
+
 
 // Simulated Annealing
-Solution Simulated_Annealing(const Config& config){
+Solution Simulated_Annealing( Config& config  , vector<double>* GB_Recorder = nullptr , vector<double>* CB_Recorder = nullptr){
     
     
     SA_Params& params = set_SA_param();
@@ -93,15 +94,14 @@ Solution Simulated_Annealing(const Config& config){
                 }
             }
 
-
-            cout<<"Iter ["<<Iter<<"] : "<<currentCost<<std::endl; 
-
-
-
+            //cout<<"Iter ["<<Iter<<"] : "<<currentCost<<std::endl; 
 
             Iter++;
             if (Iter >= params.max_Iter || params.noImproveCount >= params.max_NoImprove) break;
         }
+
+        GB_Recorder->push_back(Best_Solution.cost);
+        CB_Recorder->push_back(current_S.cost);
 
         params.T *= params.alpha;
         if (params.noImproveCount >= params.max_NoImprove) break;
@@ -115,60 +115,42 @@ Solution Simulated_Annealing(const Config& config){
 
 
 int main()
-{
-    Config config = ReadConfigFile("n4_02.dag");
-    Solution sol = Simulated_Annealing(config);
-    cout<<"Best Solution : \n";
-    show_solution(sol);
-    ScheduleResult SR =  Solution_Function(sol,config,true);
-    cout<<boolalpha<<is_feasible(SR,config)<<endl;
-    cout<<"Best Cost : \n";
-    cout<<SR.makespan<<endl;
-    cout<<is_feasible(SR,config);
+{   
+    vector<double> Global_Best_Recorder , Current_Best_Recorder;
+    Config config = ReadConfigFile("../../datasets/n4_06.dag");
 
+    
+    double Avg_Cost = 0;
+    int count = 100;
+    for (size_t i = 0; i < count; i++)
+    {
+        Solution sol = Simulated_Annealing(config , &Global_Best_Recorder , &Current_Best_Recorder);
+
+        cout<<"Best Solution : \n";
+        show_solution(sol);
+        ScheduleResult SR =  Solution_Function(sol,config,true);
+        cout<<boolalpha<<is_feasible(SR,config)<<endl;
+        cout<<"Best Cost : \n";
+        cout<<SR.makespan<<endl;
+        cout<<is_feasible(SR,config);
+        cout<<"\n\n";
+
+        Avg_Cost+=SR.makespan;
+    }
+    
+    cout<<"\n\n\n"<<Avg_Cost/count;
+    
+
+    /*
+    writeTwoVectorsToFile(Global_Best_Recorder, Current_Best_Recorder, "data.txt");
+    Call_Py_Visual();*/
     return 0;
 }
 
-/*
-Note :
-    Static Result :
-        以 100 為區間，看找到幾次最優解
-        多次找，找到最佳解的機率，穩定度測試
-*/
+ 
+ 
 
-
-
-// ==================================================================================================  //
-
-
-Solution GenerateInitialSolution(const Config& cfg, bool useHeuristic=false){
-    int T = cfg.theTCount;
-    int P = cfg.thePCount;
-    Solution sol;
-
-
-    // Process Initial Schedule String
-    sol.ss.resize(T);
-    std::iota(sol.ss.begin(), sol.ss.end(), 0);
-    if (!useHeuristic) {
-        std::shuffle(sol.ss.begin(), sol.ss.end(), rng); 
-    }else{
-        // implement Herustic Solution
-    }
-
-
-    // Process Initial Matching String
-    sol.ms.resize(T);
-    for (int t = 0; t < T; ++t) {
-        if (!useHeuristic) {
-            sol.ms[t] = rng() % P;
-        } else{
-            break; // implement Herustic Solution
-        }
-    }
-
-    return sol;
-}
+ 
 
 /*
 | 0    | Swap in `ss`               | 交換兩個任務的順序
