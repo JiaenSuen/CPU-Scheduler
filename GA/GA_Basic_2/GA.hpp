@@ -212,70 +212,87 @@ namespace Selection_For_GA {
 
 
 // Genetic Algorith API , Need To Give The Config And Parameter of GA
-Solution Genetic_Algorithm(Config& config , const GA_Params& params , vector<double>* GB_Recorder = nullptr , vector<double>* LB_Recorder = nullptr) {
-    
-    // Population
-    std::vector<Individual> population;
-    population.reserve(params.population_size);
-    for (int i = 0; i < params.population_size; ++i) {
+Solution Genetic_Algorithm_2(Config& config, const GA_Params& params,
+                                       vector<double>* GB_Recorder = nullptr,
+                                       vector<double>* LB_Recorder = nullptr) {
+    // 初始化
+    vector<Individual> population;
+    for (int i = 0; i < params.population_size; ++i)
         population.emplace_back(config);
-    }
     Individual best_so_far = population[0];
 
+    // 紀錄初始 GB/LB
+    if (GB_Recorder) GB_Recorder->push_back(best_so_far.cost);
+    if (LB_Recorder) {
+        double sum=0;
+        for (auto& ind: population) sum += ind.cost;
+        LB_Recorder->push_back(sum / population.size());
+    }
 
-    std::vector<Individual> mating_pool, next_pop;
-    mating_pool.reserve(params.population_size);
-    next_pop.reserve(params.population_size);
-
-    // Evolutaion Iteration
+    // 穩態迭代
     for (int gen = 0; gen < params.generations; ++gen) {
+    int offspring_count = params.population_size/2;  
+        for (int i = 0; i < offspring_count; ++i) {
+        // 1. 選擇兩個父代
+        
+            int P_idx1, P_idx2;
+            if (params.selection_method == "t") {
+                P_idx1 = Selection_For_GA::Tournament_Select(population, 3);  
+                P_idx2 = Selection_For_GA::Tournament_Select(population, 3);
+            } else if (params.selection_method == "r") {
+                P_idx1 = Selection_For_GA::Roulette_Select(population);
+                P_idx2 = Selection_For_GA::Roulette_Select(population);
+            } else {
+                // 預設用 tournament
+                P_idx1 = Selection_For_GA::Tournament_Select(population, 3);
+                P_idx2 = Selection_For_GA::Tournament_Select(population, 3);
+            }
 
-        // Selection_Tournament
-        if      (params.selection_method == "t") Selection_For_GA::Selection_Tournament(population, mating_pool, params);
-        else if (params.selection_method == "r") Selection_For_GA::Selection_Roulette  (population, mating_pool, params);
-        else Selection_For_GA::Selection_Tournament(population, mating_pool, params);
-        next_pop.clear();
-        // Mating
-        for (int i = 0; i < params.population_size; ++i) {
-            Individual& parent1 = mating_pool[i];
-            
-            std::uniform_int_distribution<int> dist(0, params.population_size-1);
-            Individual& parent2 = mating_pool[dist(rng)];
 
+            while (P_idx2 == P_idx1) {
+                    P_idx2 = (params.selection_method == "t") ?
+                    Selection_For_GA::Tournament_Select(population, 3) :
+                    Selection_For_GA::Roulette_Select(population);
+            }
+            Individual parent1 = population[P_idx1];
+            Individual parent2 = population[P_idx2];
+
+            // 2. 生出一個小孩
             Individual child = parent1.crossover(parent2, config, params.crossover_rate);
             child.mutate(config, params.mutation_rate);
 
-            next_pop.push_back(std::move(child));
-        }
-
-        
-        population.swap(next_pop);
-
-
-        if (GB_Recorder || LB_Recorder) {
-            double best_cost = std::numeric_limits<double>::infinity();
-            double total_cost = 0.0;
-
-            for (const auto& ind : population) {
-                total_cost += ind.cost;
+            // 3. 找最差的（非 best），替換
+            int idx_worst = -1;
+            double worst_cost = -1;
+            for (int j = 0; j < population.size(); ++j) {
+                if (population[j].cost > worst_cost && population[j].cost != best_so_far.cost) {
+                    worst_cost = population[j].cost;
+                    idx_worst = j;
+                }
+            }
+            if (idx_worst != -1 && child.cost < worst_cost) {
+                population[idx_worst] = child;
             }
 
-            double avg_cost = total_cost / population.size();
-
-            if (GB_Recorder) GB_Recorder->push_back(best_so_far.cost);
-            if (LB_Recorder) LB_Recorder->push_back(avg_cost);   
+            // 4. 更新 best
+            if (child.cost < best_so_far.cost) {
+                best_so_far = child;
+            }
         }
 
-        for (const auto& ind : population) {
-            if (ind.cost < best_so_far.cost) {
-                best_so_far = ind;
-            }
+        // 5. 紀錄
+        if (GB_Recorder) GB_Recorder->push_back(best_so_far.cost);
+        if (LB_Recorder) {
+            double sum = 0;
+            for (auto& ind : population) sum += ind.cost;
+            LB_Recorder->push_back(sum / population.size());
         }
     }
 
- 
     return static_cast<Solution>(best_so_far);
 }
+
+
 
 
 

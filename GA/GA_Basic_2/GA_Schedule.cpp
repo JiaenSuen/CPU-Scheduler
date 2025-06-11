@@ -25,11 +25,11 @@ int main(){
     GA_Params params_ga;
     params_ga.population_size = 20;
     params_ga.generations = 200;
-    params_ga.selection_method = "t";
+    params_ga.selection_method = "r";
 
     for (size_t i = 0; i < count; i++)
     {
-        Solution GA_Result = Genetic_Algorithm(config,params_ga, &GB_Recorder , &LB_Recorder);
+        Solution GA_Result = Genetic_Algorithm_2(config,params_ga, &GB_Recorder , &LB_Recorder);
         cout << "Best makespan: " << GA_Result.cost << "\n";
         show_solution(GA_Result);
         ScheduleResult sr = Solution_Function(GA_Result, config, true);

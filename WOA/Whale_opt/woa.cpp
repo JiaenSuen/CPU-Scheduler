@@ -69,12 +69,12 @@ Solution Whale_Optimize(const Config& cfg,
 }
 
 
-
+// 444.200000
 int main() {
-    Config cfg = ReadConfigFile("../../datasets/n4_02.dag");
+    Config cfg = ReadConfigFile("../../datasets/n4_00.dag");
     
     double Avg_Cost = 0;
-    double num_loop = 10;
+    double num_loop = 1;
  
     for(int i =0;i<num_loop;i++){
         Solution best = Whale_Optimize(cfg);
