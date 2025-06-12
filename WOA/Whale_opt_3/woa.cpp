@@ -12,10 +12,11 @@ using namespace std::chrono;
 
 
 // Avg Cost = 488.900000 , 20 , 100
-// Avg Cost = 444.900000 , 20 , 200
+// Avg Cost =  444.700000 , 20 , 200
 Solution Whale_Optimize(const Config& cfg,
                         int num_whales = 20,
-                        int max_iter   = 200) 
+                        int max_iter   = 200 ,
+                    vector<double>* GB_Recorder =nullptr , vector<double>* PB_Recorder=nullptr) 
 {
     // 1. 初始化種群
     std::vector<Whale> pop;
@@ -56,11 +57,14 @@ Solution Whale_Optimize(const Config& cfg,
         }
 
         // 更新全局最優
+        double pAvg_cost = 0;
         for (auto& w : pop) {
             if (w.cost < best.cost) best = w;
+            pAvg_cost += w.cost;
         }
 
-        
+        //GB_Recorder->push_back(best.cost);
+        //PB_Recorder->push_back(pAvg_cost/num_whales);
         // std::cout << "Iter " << iter << ", best makespan = " << best.cost << "\n";
     }
 
@@ -69,25 +73,53 @@ Solution Whale_Optimize(const Config& cfg,
 }
 
 
-// 444.200000
+ 
 int main() {
     Config cfg = ReadConfigFile("../../datasets/n4_00.dag");
     
+
+    int Num_of_whale = 20;
+
+
     double Avg_Cost = 0;
-    double num_loop = 100;
- 
+    double Avg_Time = 0;
+    double num_loop = 1;
+
+    double best_cost = 100000;
+    double worst_cost = 0;
+
+    //vector<double> GB_Recorder,PB_Recorder;
+    
     for(int i =0;i<num_loop;i++){
-        Solution best = Whale_Optimize(cfg);
+        auto start = std::chrono::high_resolution_clock::now();
+        Solution best = Whale_Optimize(cfg , Num_of_whale,200/*, &GB_Recorder,&PB_Recorder*/);
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        cout << "Time Usage : " << duration.count() << " ms" << std::endl;
 
         cout << "Best makespan: " << best.cost << "\n";
         ScheduleResult sr = Solution_Function(best, cfg , true);
+
         show_solution(best);
         cout << "Feasible: " << std::boolalpha << is_feasible(sr, cfg) << "\n";
         cout << "Cost : " << sr.makespan;
         Avg_Cost+=best.cost;
+        Avg_Time+=duration.count();
+        if (best_cost > best.cost) best_cost = best.cost;
+        if (worst_cost <  best.cost) worst_cost = best.cost;
+        
         cout<<"\n\n";
+
+         
+        
     }
-    printf("\n\n\nAvg Cost = %lf\n\n",Avg_Cost/num_loop);
+    printf("\n\n\nAvg Cost = %lf\n",Avg_Cost/num_loop);
+    printf("Best Cost = %lf\n",best_cost);
+    printf("Worst Cost = %lf\n",worst_cost);
+    printf("\n\n\nAvg Time = %lf\n",Avg_Time/num_loop);
+
+    /* writeTwoVectorsToFile(GB_Recorder,PB_Recorder);
+    Call_Py_Visual(); */
     return 0;
 
 }

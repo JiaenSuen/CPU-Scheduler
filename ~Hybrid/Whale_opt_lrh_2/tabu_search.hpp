@@ -164,9 +164,9 @@ private:
 
 
 // 主 Tabu Search 演算法
-Solution Tabu_Search(const Config& cfg, Solution* Initial_Solution = nullptr  , int maxIter = 10 , int tabuTenure = 5 , int numCandidates = 20 , vector<double>* GB_Recorder = nullptr ,vector<double>* CB_Recorder= nullptr) {
+Solution Tabu_Search(const Config& cfg, Solution* Initial_Solution = nullptr  , int maxIter = 10 , int tabuTenure = 3 , int numCandidates = 10) {
     // INITIAL SOLUTION
-    Solution  current;
+    Solution&  current = *Initial_Solution;
     if (Initial_Solution == nullptr)   current       = GenerateInitialSolution(cfg, false);
     else                                current      = *Initial_Solution;
 
@@ -225,8 +225,6 @@ Solution Tabu_Search(const Config& cfg, Solution* Initial_Solution = nullptr  , 
         //  扣減禁忌期限
         tabuList.decrementTenure();
 
-        GB_Recorder->push_back(bestCost);
-        CB_Recorder->push_back(currentCost);
         /*
         if (iter % 50 == 0) {
             std::cout << "[Tabu] Iter=" << iter

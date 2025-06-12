@@ -17,7 +17,7 @@ using namespace std::chrono;
 int main(){
     
     Config config = ReadConfigFile("../../datasets/n4_00.dag");
-    double count = 1;
+    double count = 10;
     double Avg_Cost = 0;
 
     vector<double> GB_Recorder , LB_Recorder;
@@ -39,8 +39,8 @@ int main(){
     }
     cout<<"\n\n\nAvg_Cost : "<<Avg_Cost/count<<endl;
 
-    writeTwoVectorsToFile(GB_Recorder , LB_Recorder, "data.txt");
-    Call_Py_Visual();
+    /*writeTwoVectorsToFile(GB_Recorder , LB_Recorder, "data.txt");
+    Call_Py_Visual();*/
 
     return 0;
 }

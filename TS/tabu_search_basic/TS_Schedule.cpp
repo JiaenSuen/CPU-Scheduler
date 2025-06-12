@@ -22,9 +22,9 @@ using namespace std::chrono;
 
   
 int main() {
-    Config cfg = ReadConfigFile("../../datasets/n4_00.dag");
+    Config cfg = ReadConfigFile("../../datasets/n4_06.dag");
     
-    double Avg_Cost = 0;
+    
     double num_loop = 5;
 
     // ----- TS Parameters ------
@@ -33,8 +33,13 @@ int main() {
     int tabuTenure    = 10;    // 禁忌期限  
     int numCandidates = 60;   // 一次產生的鄰居數量  
 
+    double Avg_Cost = 0;
+    double best_cost = 100000;
+    double worst_cost = 0;
+
+    vector<double> GB,CB;
     for(int i =0;i<num_loop;i++){
-        Solution best = Tabu_Search(cfg, nullptr  ,maxIter, tabuTenure, numCandidates);
+        Solution best = Tabu_Search(cfg, nullptr  ,maxIter, tabuTenure, numCandidates ,&GB,&CB);
 
         cout << "Best makespan: " << best.cost << "\n";
         ScheduleResult sr = Solution_Function(best, cfg , true);
@@ -43,8 +48,16 @@ int main() {
         cout << "Cost : " << sr.makespan;
         Avg_Cost+=best.cost;
         cout<<"\n";
+
+        if (best_cost > best.cost) best_cost = best.cost;
+        if (worst_cost <  best.cost) worst_cost = best.cost;
     }
-    printf("\n\n\nAvg Cost = %lf\n\n",Avg_Cost/num_loop);
+    printf("\n\n\nAvg Cost = %lf\n",Avg_Cost/num_loop);
+    printf("Best Cost = %lf\n",best_cost);
+    printf("Worst Cost = %lf\n",worst_cost);
+     
+    writeTwoVectorsToFile(GB,CB,"data.txt");
+    Call_Py_Visual();
     return 0;
 
 }

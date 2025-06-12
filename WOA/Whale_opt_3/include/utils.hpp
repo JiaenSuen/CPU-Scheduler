@@ -113,7 +113,7 @@ namespace  os_display {
             cerr << "Unable to open file: " << filename << endl;
         }
     }
-    void writeTwoVectorsToFile(const vector<double>& data1, const vector<double>& data2, const string& filename) {
+    void writeTwoVectorsToFile(const vector<double>& data1, const vector<double>& data2, const string& filename = "data.txt") {
         ofstream outFile(filename);
         if (outFile.is_open()) {
             size_t maxSize = max(data1.size(), data2.size());

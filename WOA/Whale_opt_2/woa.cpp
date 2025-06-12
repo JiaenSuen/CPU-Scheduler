@@ -12,7 +12,7 @@ using namespace std::chrono;
 
 
 // Avg Cost = 488.900000 , 20 , 100
-// Avg Cost = 444.900000 , 20 , 200
+// Avg Cost =  444.700000 , 20 , 200
 Solution Whale_Optimize(const Config& cfg,
                         int num_whales = 20,
                         int max_iter   = 200) 
@@ -74,7 +74,7 @@ int main() {
     Config cfg = ReadConfigFile("../../datasets/n4_00.dag");
     
     double Avg_Cost = 0;
-    double num_loop = 100;
+    double num_loop = 10;
  
     for(int i =0;i<num_loop;i++){
         Solution best = Whale_Optimize(cfg);

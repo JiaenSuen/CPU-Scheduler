@@ -23,7 +23,7 @@ int main() {
 
 
     double Avg_Cost = 0;
-    double num_loop = 1;
+    double num_loop = 10;
     
     for(int i =0;i<num_loop;i++){
         auto start = std::chrono::high_resolution_clock::now();
