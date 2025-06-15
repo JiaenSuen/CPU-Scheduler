@@ -16,7 +16,7 @@ using namespace std::chrono;
 
 
 int main() {
-    Config cfg = ReadConfigFile("../../datasets/n4_06.dag");
+    Config cfg = ReadConfigFile("../../datasets/n4_00.dag");
     
 
     int Num_of_whale = 20;
@@ -24,18 +24,18 @@ int main() {
 
     double Avg_Cost = 0;
     double Avg_Time = 0;
-    double num_loop = 5;
+    double num_loop = 1;
 
     double best_cost = 100000;
     double worst_cost = 0;
 
     vector<double> cost_list;
 
-    //vector<double> GB_Recorder,PB_Recorder;
+    vector<double> GB_Recorder,PB_Recorder;
     
     for(int i =0;i<num_loop;i++){
         auto start = std::chrono::high_resolution_clock::now();
-        Solution best = Whale_Optimize(cfg , Num_of_whale,200/*, &GB_Recorder,&PB_Recorder*/);
+        Solution best = Whale_Optimize(cfg , Num_of_whale,200 , &GB_Recorder,&PB_Recorder);
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         cout << "Time Usage : " << duration.count() << " ms" << std::endl;
@@ -74,8 +74,9 @@ int main() {
     printf("Worst Cost = %lf\n",worst_cost);
     printf("\n\n\nAvg Time = %lf\n",Avg_Time/num_loop);
     printf("Standard Deviation of Cost = %lf\n", std_dev);
-    /* writeTwoVectorsToFile(GB_Recorder,PB_Recorder);
-    Call_Py_Visual(); */
+
+    writeTwoVectorsToFile(GB_Recorder,PB_Recorder , "data.txt");
+    Call_Py_Visual(); 
     return 0;
 
 }

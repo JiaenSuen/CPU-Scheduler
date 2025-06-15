@@ -87,7 +87,7 @@ Solution FOX_Algorithm(const Config& cfg, FOX_Parameters& pars, vector<double>* 
 
 int main( ) {
         
-    string config_file = "../../datasets/n4_00.dag";
+    string config_file = "../../datasets/n4_06.dag";
     string filename = "data.txt";
     // 1. 讀入 Config
     Config cfg;
@@ -103,7 +103,7 @@ int main( ) {
      
     FOX_Parameters pars(
         50,      // n = 50
-        100,     // MaxIt = 100
+        200,     // MaxIt = 100
         0.8,     // alpha
         0.6,     // beta
         0.18,    // c1
@@ -114,9 +114,9 @@ int main( ) {
         ub
     );
 
-
-    vector<double> Recorder;
-    int count = 1;
+    double Avg = 0;
+    vector<double> Recorder ;
+    int count = 5;
     for (size_t i = 0; i < count; i++)
     {
         Recorder.clear();
@@ -131,9 +131,11 @@ int main( ) {
         os_display::show_vector(best.ms);
         std::cout << "makespan = " << best.cost << "\n\n";
         
+        Avg += best.cost;
     }
 
-    writeVectorToFile(Recorder, filename);
-    Call_Py_Visual();
+    cout<<Avg/count;
+    /*writeVectorToFile(Recorder, filename);
+    Call_Py_Visual();*/
     return 0;
 }

@@ -14,6 +14,7 @@ using namespace std::chrono;
 // Avg Cost = 488.900000 , 20 , 100
 // Avg Cost = 444.900000 , 20 , 200
 Solution Whale_Optimize(const Config& cfg,
+                        vector<double>* GB_Recorder = nullptr,
                         int num_whales = 20,
                         int max_iter   = 200) 
 {
@@ -60,6 +61,8 @@ Solution Whale_Optimize(const Config& cfg,
             if (w.cost < best.cost) best = w;
         }
 
+        if(GB_Recorder) GB_Recorder->push_back(best.cost);
+
         
         // std::cout << "Iter " << iter << ", best makespan = " << best.cost << "\n";
     }
@@ -71,13 +74,18 @@ Solution Whale_Optimize(const Config& cfg,
 
 // 444.200000
 int main() {
-    Config cfg = ReadConfigFile("../../datasets/n4_00.dag");
+    Config cfg = ReadConfigFile("../../datasets/n4_06.dag");
     
+
+    vector<double> GB_Recorder;
+    vector<double> CB_Recorder;
+
+
     double Avg_Cost = 0;
-    double num_loop = 100;
+    double num_loop = 5;
  
     for(int i =0;i<num_loop;i++){
-        Solution best = Whale_Optimize(cfg);
+        Solution best = Whale_Optimize(cfg , &GB_Recorder);
 
         cout << "Best makespan: " << best.cost << "\n";
         ScheduleResult sr = Solution_Function(best, cfg , true);
@@ -88,6 +96,9 @@ int main() {
         cout<<"\n\n";
     }
     printf("\n\n\nAvg Cost = %lf\n\n",Avg_Cost/num_loop);
+
+    /*writeTwoVectorsToFile(GB_Recorder,CB_Recorder,"data.txt");
+    Call_Py_Visual();*/
     return 0;
 
 }

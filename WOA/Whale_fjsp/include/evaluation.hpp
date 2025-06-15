@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include "config.hpp"
+#include <deque>
 
 using namespace std;
 

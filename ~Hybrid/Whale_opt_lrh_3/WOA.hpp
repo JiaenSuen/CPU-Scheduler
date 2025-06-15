@@ -130,7 +130,8 @@ public:
 
 Solution Whale_Optimize(const Config& cfg,
                         int num_whales = 20,
-                        int max_iter   = 200) 
+                        int max_iter   = 200,
+                    vector<double>* GB_Recorder = nullptr , vector<double>* PB_Recorder = nullptr) 
 {
     // 1. 初始化種群
     std::vector<Whale> pop;
@@ -170,11 +171,16 @@ Solution Whale_Optimize(const Config& cfg,
             }
         }
 
+        double Avg_Cost_Pop = 0;
         // 更新全局最優
         for (auto& w : pop) {
             if (w.cost < best.cost) best = w;
+            Avg_Cost_Pop += w.cost;
         }
 
+        if (GB_Recorder) GB_Recorder->push_back(best.cost);
+        if (PB_Recorder) PB_Recorder->push_back(Avg_Cost_Pop/num_whales);
+        
         
         // std::cout << "Iter " << iter << ", best makespan = " << best.cost << "\n";
     }

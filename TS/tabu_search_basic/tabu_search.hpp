@@ -9,11 +9,13 @@
 
 
 
- 
-double Evaluate( Solution& sol, const Config& cfg) {
+double Evaluate(Solution& sol, const Config& cfg) {
     ScheduleResult res = Solution_Function(sol, cfg, false);
-    return static_cast<double>(res.makespan);
+    double cost = static_cast<double>(res.makespan);
+    sol.cost = cost;   
+    return cost;
 }
+
 
 
 enum MoveType {
@@ -211,22 +213,20 @@ Solution Tabu_Search(const Config& cfg, Solution* Initial_Solution = nullptr  , 
         //  更新 Tabu List
         tabuList.add(chosen.move);
 
-        //  更新 current
+        /// 更新 current
         current     = chosen.solution;
         currentCost = chosen.cost;
 
-        //  更新最佳
+        // 更新 best
         if (currentCost < bestCost) {
-            current.cost = currentCost;     
-            bestSolution = current;            
-            bestCost     = currentCost;
+            bestSolution     = current;
+            bestSolution.cost = currentCost;
+            bestCost         = currentCost;
         }
 
-        //  扣減禁忌期限
-        tabuList.decrementTenure();
-
-        GB_Recorder->push_back(bestCost);
-        CB_Recorder->push_back(currentCost);
+        // **在這裡一定要執行到兩個 recorder**  
+        if (GB_Recorder) GB_Recorder->push_back(bestCost);
+        if (CB_Recorder) CB_Recorder->push_back(current.cost);
         /*
         if (iter % 50 == 0) {
             std::cout << "[Tabu] Iter=" << iter

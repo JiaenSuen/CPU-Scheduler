@@ -30,9 +30,9 @@ SA_Params& set_SA_param() {
     params.T_min          = 1e-3;             // 例如：當溫度低於此值時停止 
     params.alpha          = 0.85;            // 每次迴圈後溫度乘上 alpha
     params.iterPerTemp    = 5;              // 每個溫度底下做多少次鄰域搜尋
-    params.max_Iter       = 200;           // 最多總迭代次數
+    params.max_Iter       = 400;           // 最多總迭代次數
     params.max_NoImprove  = 6000;         // 連續多少次沒有改善就停止
-    params.use_Heuristic  = false;       // 預設用隨機初始解
+    params.use_Heuristic  = true;       // 預設用隨機初始解
     params.noImproveCount = 0;          // 計數器歸零
     return params;
 }
@@ -56,6 +56,7 @@ Solution Simulated_Annealing( Config& config  , vector<double>* GB_Recorder = nu
     Solution current_S = GenerateInitialSolution(config, params.use_Heuristic);
     ScheduleResult result = Solution_Function(current_S,config);
     double currentCost = result.makespan;
+    cout<<"init : "<< currentCost <<endl;
 
     // Best Init
     Solution Best_Solution = current_S;
@@ -117,11 +118,11 @@ Solution Simulated_Annealing( Config& config  , vector<double>* GB_Recorder = nu
 int main()
 {   
     vector<double> Global_Best_Recorder , Current_Best_Recorder;
-    Config config = ReadConfigFile("../../datasets/n4_06.dag");
+    Config config = ReadConfigFile("../../datasets/n4_00.dag");
 
     
     double Avg_Cost = 0;
-    int count = 100;
+    int count = 1;
     for (size_t i = 0; i < count; i++)
     {
         Solution sol = Simulated_Annealing(config , &Global_Best_Recorder , &Current_Best_Recorder);
@@ -141,9 +142,9 @@ int main()
     cout<<"\n\n\n"<<Avg_Cost/count;
     
 
-    /*
+    
     writeTwoVectorsToFile(Global_Best_Recorder, Current_Best_Recorder, "data.txt");
-    Call_Py_Visual();*/
+    Call_Py_Visual();
     return 0;
 }
 

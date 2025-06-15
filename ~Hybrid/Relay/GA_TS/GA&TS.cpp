@@ -33,12 +33,15 @@ int main() {
     params_ga.population_size = 20;
     params_ga.generations = 100;
 
+    vector<double> GB_Recorder;
+    vector<double> CB_Recorder;
 
     for (int i ;i<times;i++){
         
         
-        Solution GA_Result = Genetic_Algorithm(cfg,params_ga);
-        Solution TS_Result = Tabu_Search(cfg, &GA_Result ,maxIter, tabuTenure, numCandidates);
+        Solution GA_Result = Genetic_Algorithm(cfg,params_ga ,  &GB_Recorder);
+        cout<<"GA cost : "<<GA_Result.cost<<endl;
+        Solution TS_Result = Tabu_Search(cfg, &GA_Result ,maxIter, tabuTenure, numCandidates , &GB_Recorder);
         Solution& best =  TS_Result;
 
         cout << "Best makespan: " << best.cost << "\n";
@@ -53,5 +56,9 @@ int main() {
     //system("cls");
     cout<<"\n\n";
     cout<<"Avg Makespan : "<<Avg_Makespan;
+
+
+    /*writeTwoVectorsToFile(GB_Recorder,CB_Recorder,"data.txt");
+    Call_Py_Visual();*/
     return 0;
 }

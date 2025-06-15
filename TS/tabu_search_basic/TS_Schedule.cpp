@@ -39,7 +39,8 @@ int main() {
 
     vector<double> GB,CB;
     for(int i =0;i<num_loop;i++){
-        Solution best = Tabu_Search(cfg, nullptr  ,maxIter, tabuTenure, numCandidates ,&GB,&CB);
+        Solution init_S = GenerateInitialSolution(cfg , true);
+        Solution best = Tabu_Search(cfg, &init_S  ,maxIter, tabuTenure, numCandidates ,&GB,&CB);
 
         cout << "Best makespan: " << best.cost << "\n";
         ScheduleResult sr = Solution_Function(best, cfg , true);
@@ -56,8 +57,8 @@ int main() {
     printf("Best Cost = %lf\n",best_cost);
     printf("Worst Cost = %lf\n",worst_cost);
      
-    writeTwoVectorsToFile(GB,CB,"data.txt");
-    Call_Py_Visual();
+    /*writeTwoVectorsToFile(GB,CB,"data.txt");
+    Call_Py_Visual();*/
     return 0;
 
 }

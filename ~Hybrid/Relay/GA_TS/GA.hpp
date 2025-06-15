@@ -17,7 +17,7 @@ struct GA_Params {
         generations = 200;
         crossover_rate = 0.7;
         mutation_rate = 0.4;
-        selection_method = "r";
+        selection_method = "t"; //  鍛造式選擇 t 、 輪盤式 r
     }
 };
 
@@ -126,8 +126,8 @@ public:
 
 
 namespace Selection_For_GA {
-    // Selection :
-    // 鍛造式選擇（Tournament Selection）
+    // Selection_Tournament :
+    // 競賽選擇（Tournament Selection）
     int Tournament_Select(const std::vector<Individual>& pop, int tournament_size) {
         std::uniform_int_distribution<int> dist(0, pop.size() - 1);
         int best_idx = dist(rng);
@@ -144,7 +144,7 @@ namespace Selection_For_GA {
     }
 
     // 建立下一代父母配對的選擇池
-    void Selection(const std::vector<Individual>& old_pop, vector<Individual>& mating_pool, const GA_Params& params) {
+    void Selection_Tournament(const std::vector<Individual>& old_pop, vector<Individual>& mating_pool, const GA_Params& params) {
         int pop_size = old_pop.size();
         int tour_size = 3;   
         mating_pool.clear();
@@ -156,8 +156,56 @@ namespace Selection_For_GA {
         }
     }
 
-     
-}// End Selection Define
+    
+
+
+    int Roulette_Select(const std::vector<Individual>& pop) {
+        int n = pop.size();
+        // 計算總適應度
+        double sum_fitness = 0.0;
+        for (const auto& ind : pop) {
+            sum_fitness += ind.fitness;
+        }
+        if (sum_fitness <= 0) {
+            // 若所有 fitness 非正，退回隨機選擇
+            std::uniform_int_distribution<int> dist(0, n - 1);
+            return dist(rng);
+        }
+        // 建立累積和
+        std::vector<double> cum_fitness(n);
+        double cum = 0.0;
+        for (int i = 0; i < n; ++i) {
+            cum += pop[i].fitness;
+            cum_fitness[i] = cum;
+        }
+        // 隨機數 r in [0, sum_fitness)
+        std::uniform_real_distribution<double> uni_rnd(0.0, 1.0);
+        double r = uni_rnd(rng) * sum_fitness;
+        // 二分搜尋或線性搜尋找到第一個 cum_fitness[j] >= r
+        int left = 0, right = n - 1, selected = n-1;
+        while (left <= right) {
+            int mid = (left + right) / 2;
+            if (cum_fitness[mid] >= r) {
+                selected = mid;
+                right = mid - 1;
+            } else {
+                left = mid + 1;
+            }
+        }
+        return selected;
+    }
+    // 建立 Selection_Roulette 函式：
+    void Selection_Roulette(const std::vector<Individual>& old_pop, vector<Individual>& mating_pool, const GA_Params& params) {
+        int pop_size = old_pop.size();
+        mating_pool.clear();
+        mating_pool.reserve(pop_size);
+        for (int i = 0; i < pop_size; ++i) {
+            int sel_idx = Roulette_Select(old_pop);
+            mating_pool.push_back(old_pop[sel_idx]);
+        }
+    }
+
+}// End Selection  Define
 
 
 
@@ -172,6 +220,8 @@ Solution Genetic_Algorithm(Config& config , const GA_Params& params , vector<dou
     for (int i = 0; i < params.population_size; ++i) {
         population.emplace_back(config);
     }
+    Individual best_so_far = population[0];
+
 
     std::vector<Individual> mating_pool, next_pop;
     mating_pool.reserve(params.population_size);
@@ -179,9 +229,11 @@ Solution Genetic_Algorithm(Config& config , const GA_Params& params , vector<dou
 
     // Evolutaion Iteration
     for (int gen = 0; gen < params.generations; ++gen) {
-        // Selection
-        Selection_For_GA::Selection(population, mating_pool, params);
 
+        // Selection_Tournament
+        if      (params.selection_method == "t") Selection_For_GA::Selection_Tournament(population, mating_pool, params);
+        else if (params.selection_method == "r") Selection_For_GA::Selection_Roulette  (population, mating_pool, params);
+        else Selection_For_GA::Selection_Tournament(population, mating_pool, params);
         next_pop.clear();
         // Mating
         for (int i = 0; i < params.population_size; ++i) {
@@ -196,19 +248,33 @@ Solution Genetic_Algorithm(Config& config , const GA_Params& params , vector<dou
             next_pop.push_back(std::move(child));
         }
 
- 
+        
         population.swap(next_pop);
+
+
+        if (GB_Recorder || LB_Recorder) {
+            double best_cost = std::numeric_limits<double>::infinity();
+            double total_cost = 0.0;
+
+            for (const auto& ind : population) {
+                total_cost += ind.cost;
+            }
+
+            double avg_cost = total_cost / population.size();
+
+            if (GB_Recorder) GB_Recorder->push_back(best_so_far.cost);
+            if (LB_Recorder) LB_Recorder->push_back(avg_cost);   
+        }
+
+        for (const auto& ind : population) {
+            if (ind.cost < best_so_far.cost) {
+                best_so_far = ind;
+            }
+        }
     }
 
  
-    auto best_it = std::min_element(
-        population.begin(), population.end(),
-        [](auto& a, auto& b){ return a.cost < b.cost; }
-    );
-    Solution best = *best_it;
-    
-
-    return best;
+    return static_cast<Solution>(best_so_far);
 }
 
 
